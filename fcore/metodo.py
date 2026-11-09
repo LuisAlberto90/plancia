@@ -12,14 +12,14 @@ except ImportError: import store as lib
 SKILL = Path(__file__).resolve().parent.parent / "skills" / "plancia-metodo" / "SKILL.md"
 
 
-def destinazioni(globale):
-    if globale: return [Path.home() / ".claude" / "skills" / "plancia-metodo", Path.home() / ".copilot" / "skills" / "plancia-metodo"]
+def destinazioni(globale, agenti=("claude", "copilot")):
+    if globale: return [Path.home() / ("." + a) / "skills" / "plancia-metodo" for a in ("claude", "copilot") if a in agenti]
     return [lib.radice() / ".claude" / "skills" / "plancia-metodo"]
 
 
-def installa(globale=False, scrivi=False, out=None):
+def installa(globale=False, scrivi=False, out=None, agenti=("claude", "copilot")):
     out = out if out is not None else []; t = SKILL.read_text(encoding="utf-8")
-    for d in destinazioni(globale):
+    for d in destinazioni(globale, agenti):
         f = d / "SKILL.md"; uguale = f.exists() and f.read_text(encoding="utf-8") == t
         out.append(("skill plancia-metodo gia aggiornata in %s" if uguale else ("scritta" if scrivi else "scriverei") + " la skill plancia-metodo in %s") % d)
         if scrivi and not uguale: d.mkdir(parents=True, exist_ok=True); f.write_text(t, encoding="utf-8")

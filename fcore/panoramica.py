@@ -11,7 +11,8 @@ try: from . import store as lib, sessioni as S
 except ImportError: import store as lib, sessioni as S
 
 ORE_RECENTI = 24
-LAVORA_S, FERMO_S, INATTIVO_S = 120, 15 * 60, 30 * 60     # soglie: risposta in corso / nessun segno di vita / turno finito da tempo
+LAVORA_S, FERMO_S, INATTIVO_S = 120, 15 * 60, 30 * 60
+ATTESA_OK_S = 5                                              # VS Code: comando senza esito dopo 5 s = quasi sempre il tuo "Allow" in chat     # soglie: risposta in corso / nessun segno di vita / turno finito da tempo
 ORDINE = ["loop", "errore", "permesso", "fermo", "aspetta", "lavora", "inattivo"]
 RIPETIZIONI_LOOP = 3                                       # stessa chiamata identica N volte dall'ultima domanda = loop
 NON_LOOP = ("TodoWrite", "TaskUpdate", "TaskCreate", "TaskList", "TaskGet")
@@ -251,9 +252,10 @@ def scheda(rad, soglia_token=None):
         for r in RQ.da_eventi(eventi if len(eventi) >= 300 else lib.leggi_righe("eventi.jsonl", 2000)):
             a = r["attivita"][-1] if r["attivita"] else None; fine = _ts_utc(r["fine"]) or time.time(); e = int(time.time() - fine)
             pend = a and a["esito"] == "in corso" and a["tipo"] != "sotto-agente"   # un sotto-agente che gira non e un permesso
-            st = "aspetta" if r["finita"] else ("permesso" if pend and e > LAVORA_S else ("lavora" if e < 6 * 60 else "fermo"))
+            chiede = pend and a["tipo"] in ("comando", "web") and not a.get("bg")          # in VS Code questi passano dal tuo "Allow"
+            st = "aspetta" if r["finita"] else ("permesso" if pend and (e > LAVORA_S or (chiede and e >= ATTESA_OK_S)) else ("lavora" if e < 6 * 60 else "fermo"))
             sess.append({"fonte": r["fonte"], "id": r["sessione"], "ultimo": None, "in_sospeso": [a["tipo"]] if pend else [], "errori": r["errori"], "errore_testo": "",
-                         "risposta": "", "domanda": r["domanda"], "sotto_agenti": [], "loop": "", "domanda_agente": "", "ambiente": r.get("ambiente") or [], "token_oggi": 0, "modello": "",
+                         "risposta": "", "domanda": r["domanda"], "attesa": lib.redigi(a["cosa"], 140) if pend else "", "sotto_agenti": [], "loop": "", "domanda_agente": "", "ambiente": r.get("ambiente") or [], "token_oggi": 0, "modello": "",
                          "mtime": fine, "eta": e, "eta_txt": _eta(e), "stato": st, "chiusa": e > 2 * 3600, "da_hook": True})
     except Exception: pass
     pr = processi(rad)
@@ -270,7 +272,7 @@ def scheda(rad, soglia_token=None):
         if s["stato"] == "loop": att.append(("loop", "%s in loop: %s — interrompilo (Esc) e cambia approccio" % (s["fonte"], s["loop"])))
         elif s["stato"] == "aspetta" and s.get("domanda_agente"): att.append(("domanda", "%s ti ha fatto una domanda: %s — rispondi nel terminale" % (s["fonte"], s["domanda_agente"])))
         elif s["stato"] == "errore": att.append(("errore", "%s: %d errori di strumenti dall'ultima domanda — %s" % (s["fonte"], s["errori"], s["errore_testo"][:90])))
-        elif s["stato"] == "permesso": att.append(("permesso", "%s aspetta che tu approvi %s da %s" % (s["fonte"], ", ".join(x for x in s["in_sospeso"] if x) or "un'azione", s["eta_txt"])))
+        elif s["stato"] == "permesso": att.append(("permesso", "la chat (%s) aspetta il tuo Allow per: %s · da %s" % (s["fonte"], s.get("attesa") or ", ".join(x for x in s["in_sospeso"] if x) or "un'azione", s["eta_txt"])))
         elif s["stato"] == "fermo": att.append(("fermo", "%s: nessun segno di vita da %s (%s)" % (s["fonte"], s["eta_txt"], ", ".join(x for x in s["in_sospeso"] if x) or "dopo la domanda")))
     vis = set()
     for s in aperte + chiuse[:2]:

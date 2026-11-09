@@ -269,14 +269,14 @@ def main(a):
                 n = int(self.headers.get("Content-Length") or 0)
                 if n > 4096 or "application/json" not in (self.headers.get("Content-Type") or ""): raise ValueError("richiesta non valida")
                 d = json.loads(self.rfile.read(n).decode("utf-8"))
-                q, pid, az = str(d.get("p") or ""), str(d.get("id") or ""), str(d.get("azione") or "")
-                if q not in PN.progetti() or not re.fullmatch(r"[a-z0-9-]{1,60}", pid) or az not in ("rifiuta", "ripristina", "crea"): raise ValueError("richiesta non valida")
+                q, pid, az, ag = str(d.get("p") or ""), str(d.get("id") or ""), str(d.get("azione") or ""), str(d.get("agente") or "")
+                if q not in PN.progetti() or not re.fullmatch(r"[a-z0-9-]{1,60}", pid) or az not in ("rifiuta", "ripristina", "crea") or ag not in ("", "copilot", "claude", "entrambi"): raise ValueError("richiesta non valida")
                 with BLOCCO:
                     try:
                         from fcore import strumenti as ST
                     except ImportError:
                         from . import strumenti as ST
-                    r = ST.azione_proposta(q, pid, az)
+                    r = ST.azione_proposta(q, pid, az, ag)
                     os.environ["FACTORY_ROOT"] = str(rad)
                 body = json.dumps(r, ensure_ascii=False).encode()
                 self.send_response(200)
