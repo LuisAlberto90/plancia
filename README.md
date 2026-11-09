@@ -1,0 +1,88 @@
+# Plancia
+
+**La plancia di comando per i tuoi agenti di codice.**
+*The bridge for your coding agents: Claude Code, Copilot CLI, VS Code chat.*
+
+Una pagina nel browser che ti fa vedere, per tutti i tuoi progetti, cosa fanno gli agenti:
+chi lavora, chi aspetta te, chi aspetta un permesso, chi sbaglia o gira in tondo, quanto consuma.
+Per ogni domanda l'agente scrive prima un **piano a passi** (con rami paralleli) e la Plancia lo disegna come grafo,
+con le azioni e gli errori di ogni passo. Le **guardie** bloccano file protetti (`.env`, chiavi, `.git`) e comandi pericolosi.
+
+Zero token per guardare: la Plancia legge le trascrizioni e gli hook, non chiede niente al modello.
+Serve solo **Python 3.9+** (su Windows il comando `py`) e **git**.
+
+---
+
+## 1. Installare: una volta sola, vale per tutti i progetti
+
+Serve Python 3.9+ (su Windows il comando `py`). Non tocca i file dei tuoi progetti: ogni progetto si prepara da solo al primo uso
+(cartella `.factory/`, esclusa da git solo sul tuo PC).
+
+**Chat di VS Code (Copilot)**
+1. `Ctrl+Shift+P` → **Chat: Install Plugin from Source** → incolla `https://github.com/LuisAlberto90/plancia` → scegli **User**.
+2. `Ctrl+Shift+P` → **Developer: Reload Window**.
+3. Impostazioni (`Ctrl+,`) → cerca `hooks` → attiva gli hook della chat (una volta sola).
+
+**Copilot CLI**
+```
+copilot plugin install LuisAlberto90/plancia
+```
+
+**Claude Code**
+```
+/plugin marketplace add LuisAlberto90/plancia
+/plugin install plancia@plancia
+```
+
+Fatto. Alla prima domanda in un progetto la Plancia si accende da sola: apri **http://127.0.0.1:8780** (mettilo nei preferiti)
+oppure scrivi `/plancia` in chat. Aggiornamenti: dalla pagina dei plugin di VS Code / `copilot plugin update plancia` / `/plugin update` in Claude Code.
+
+**Alternativa senza plugin** (se l'azienda blocca i plugin): `git clone https://github.com/LuisAlberto90/plancia C:\Strumenti\plancia`,
+poi doppio clic su **Installa-in-un-progetto.cmd** per ogni progetto (scrive regola e hook nel progetto).
+
+## 2. Usarla ogni giorno
+
+| Cosa vuoi fare | Doppio clic su |
+|---|---|
+| Vedere tutti i progetti e gli agenti | **Apri-Plancia.cmd** |
+| Preparare un progetto nuovo | **Installa-in-un-progetto.cmd** |
+| Ripartire puliti (lo storico va in `.factory\archivio`, niente si cancella) | **Archivia-storico.cmd** |
+| Mandare un problema a chi ti supporta (zip **senza codice sorgente**) | **Diagnosi.cmd** |
+| Prendere l'ultima versione | **Aggiorna-Plancia.cmd** |
+
+Nel pannello:
+- **Progetti**: una scheda per progetto. Il riquadro del piano dice "l'agente sta scrivendo il piano…" e poi "Piano pronto → Vedi il piano". Il pulsante 🔔 attiva le notifiche quando un agente ha finito o aspetta te.
+- **Piano**: il grafo dell'ultima richiesta, con voto di qualità (0-10). Clic su un passo = cosa ha fatto (file, comandi, errori).
+- **Richieste**, **Riprendere**: cosa è successo e da dove ripartire domani.
+- **Salute**: cosa non va e il comando per sistemarlo.
+- **Strumenti**: skill, server MCP, hook, istruzioni e plugin che gli agenti usano in quel progetto, con quanti token costano e cosa conviene aggiungere.
+- **Prove**: 10 prove guidate per verificare che tutto funzioni su un progetto vero (dalla domanda semplice al refactoring su un ramo git).
+
+## 3. Aggiornare
+
+Doppio clic su **Aggiorna-Plancia.cmd**, poi chiudi e riapri la Plancia.
+Se la versione nuova cambia hook o regole, il pannello lo dice in **Salute**: basta rilanciare *Installa-in-un-progetto* su quel progetto.
+
+## 4. Cosa scrive nei progetti
+
+Con il plugin: solo `.factory/` (piani, eventi, mappa, guardie), esclusa da git in `.git/info/exclude`. La regola del piano arriva all'agente a inizio sessione (~200 token).
+Con l'installazione classica in piu: la regola in `AGENTS.md`, gli hook in `.claude/settings.json` e `.github/hooks/plancia.json`, i 3 strumenti del piano in `.vscode/mcp.json`.
+Gli hook non salvano mai segreti; i prompt sono salvati accorciati e ripuliti. `.factory/` è escluso da git.
+
+## Comandi (per chi usa il terminale)
+
+`py C:\Strumenti\plancia\factory.py <comando>` (Linux: `python3 ~/plancia/factory.py <comando>`)
+
+| Comando | A cosa serve |
+|---|---|
+| `init --scrivi` | prepara il progetto corrente (come Installa-in-un-progetto) |
+| `pannello` | apre la Plancia |
+| `progetti` | lo stato di tutti i progetti nel terminale |
+| `piano nuovo "Titolo" "A: ..." "B: ... <- A"` / `passo B fatto "nota"` | il piano (di solito lo scrive l'agente) |
+| `contesto --scrivi` | rigenera `.factory/CONTESTO.md`: stack, comandi build/test (anche Maven/JDK fuori dal PATH), moduli |
+| `strumenti` / `skill-progetto --scrivi` | inventario degli strumenti / skill del progetto con i comandi di build e test |
+| `prove`, `prove verifica N` | le prove guidate |
+| `archivia`, `diagnosi`, `salute` | storico, zip di supporto, controlli |
+
+Test della Plancia stessa: `python tests/run_tests.py` (il test del pannello nel browser richiede `playwright`, altrimenti viene saltato).
+

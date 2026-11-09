@@ -1,0 +1,13 @@
+{
+  "name": "plancia",
+  "owner": {
+    "name": "Luis Alberto Camargo"
+  },
+  "plugins": [
+    {
+      "name": "plancia",
+      "source": "./",
+      "description": "Plancia: see what your coding agents do (plan graph, waiting, errors, loops, usage) and keep them safe (protected files, plan before edits). Works in every project once installed."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "plancia",
+  "version": "0.16.0",
+  "description": "Plancia: see what your coding agents do (plan graph, waiting, errors, loops, usage) and keep them safe (protected files, plan before edits). Works in every project once installed.",
+  "author": {
+    "name": "Luis Alberto Camargo"
+  },
+  "repository": "https://github.com/LuisAlberto90/plancia",
+  "keywords": [
+    "plan",
+    "agents",
+    "dashboard",
+    "guardrails"
+  ],
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json"
+}

@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "python3 \"$HOME/.plancia/hook.py\" SessionStart",
+        "powershell": "py \"$HOME\\.plancia\\hook.py\" SessionStart",
+        "timeoutSec": 30
+      }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "bash": "python3 \"$HOME/.plancia/hook.py\" UserPromptSubmit",
+        "powershell": "py \"$HOME\\.plancia\\hook.py\" UserPromptSubmit",
+        "timeoutSec": 30
+      }
+    ],
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "python3 \"$HOME/.plancia/hook.py\" PreToolUse",
+        "powershell": "py \"$HOME\\.plancia\\hook.py\" PreToolUse",
+        "timeoutSec": 30
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "python3 \"$HOME/.plancia/hook.py\" PostToolUse",
+        "powershell": "py \"$HOME\\.plancia\\hook.py\" PostToolUse",
+        "timeoutSec": 30
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "bash": "python3 \"$HOME/.plancia/hook.py\" SessionEnd",
+        "powershell": "py \"$HOME\\.plancia\\hook.py\" SessionEnd",
+        "timeoutSec": 30
+      }
+    ],
+    "agentStop": [
+      {
+        "type": "command",
+        "bash": "python3 \"$HOME/.plancia/hook.py\" Stop",
+        "powershell": "py \"$HOME\\.plancia\\hook.py\" Stop",
+        "timeoutSec": 30
+      }
+    ]
+  }
+}

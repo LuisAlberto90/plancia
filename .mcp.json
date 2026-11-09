@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "plancia": {
+      "command": "py",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/factory.py",
+        "mcp"
+      ],
+      "env": {
+        "PLANCIA_MCP": "piano",
+        "PLANCIA_PLUGIN": "1"
+      }
+    }
+  }
+}

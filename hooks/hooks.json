@@ -1,0 +1,83 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py \"${CLAUDE_PLUGIN_ROOT}/factory.py\" hook SessionStart --plugin",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py \"${CLAUDE_PLUGIN_ROOT}/factory.py\" hook UserPromptSubmit --plugin",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py \"${CLAUDE_PLUGIN_ROOT}/factory.py\" hook PreToolUse --plugin",
+            "timeout": 30
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py \"${CLAUDE_PLUGIN_ROOT}/factory.py\" hook PostToolUse --plugin",
+            "timeout": 30
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py \"${CLAUDE_PLUGIN_ROOT}/factory.py\" hook Stop --plugin",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py \"${CLAUDE_PLUGIN_ROOT}/factory.py\" hook Notification --plugin",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py \"${CLAUDE_PLUGIN_ROOT}/factory.py\" hook SessionEnd --plugin",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
