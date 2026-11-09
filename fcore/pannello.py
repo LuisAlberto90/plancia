@@ -25,6 +25,22 @@ def _piano(f):
             "critico": M.percorso_critico(d), "figli": {s["id"]: [x["id"] for x in M.figli(d["steps"], s["id"])] for s in d["steps"] if M.figli(d["steps"], s["id"])}}
 
 
+def _aderenza(steps, r, fuori):
+    """Il piano e stato rispettato? Solo fatti registrati: passi chiusi senza nessuna azione vista, passi lasciati aperti, modifiche fuori piano, passi chiusi senza risultato."""
+    veri = [s for s in steps if not s.get("fuori")]
+    chiusi = [s for s in veri if M.canon(s.get("stato")) in ("FATTO", "VERIFICATO")]
+    vuoti = [s["id"] for s in chiusi if not s.get("azioni") and not re.search(r"(?i)summary|riepilog|sintesi|report|answer|risposta", s.get("testo") or "")]
+    aperti = [s["id"] for s in veri if M.canon(s.get("stato")) in ("DA_FARE", "IN_CORSO")] if r.get("finita") else []
+    senza = [s["id"] for s in chiusi if not (s.get("dettaglio") or s.get("nota") or s.get("esito") or any(h.get("frase") or h.get("nota") for h in s.get("history") or []))]
+    pen = 15 * len(vuoti) + 15 * len(aperti) + 10 * min(3, len(fuori)) + 5 * len(senza)
+    note = []
+    if aperti: note.append("passi lasciati aperti a lavoro finito: " + ", ".join(aperti))
+    if vuoti: note.append("passi dichiarati fatti senza nessuna azione vista: " + ", ".join(vuoti))
+    if fuori: note.append("%d modifiche fuori dal piano" % len(fuori))
+    if senza: note.append("passi chiusi senza dire il risultato: " + ", ".join(senza))
+    return {"voto": max(0, 100 - pen), "note": note}
+
+
 def _epoch(ts):
     try: return time.mktime(time.strptime(str(ts)[:19], "%Y-%m-%dT%H:%M:%S"))
     except Exception: return 0
@@ -115,6 +131,7 @@ def stato_pannello(prompt=True, cc=None, cp=None):
             for s in x["steps"]: s["azioni"] = az.get(s["id"], [])
             fp = rich[0].get("fuori_piano") or []
             if fp: x["steps"] = x["steps"] + [{"id": "FUORI", "testo": "fuori dal piano: %d modifiche non legate a un passo" % len(fp), "dipende_da": [], "chi": "agente", "stato": "NON_NECESSARIO", "dettaglio": "l'agente ha toccato file senza segnare il passo", "azioni": fp, "fuori": True}]
+            x["aderenza"] = _aderenza(x["steps"], rich[0], fp)
             x.update(live=True, task="Ultima richiesta · " + x["task"], scritto=True); piani.remove(x); piani.insert(0, x); nota_piano = None; break
     else:
         for x in piani:

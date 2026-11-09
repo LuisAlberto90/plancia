@@ -248,7 +248,7 @@ def aggiungi(args):
         pid, testo, dip = (m.group(1), m.group(2), m.group(3)) if m else ("P%d" % (len(ids) + n + 1), raw.strip(), None)
         if pid in ids: print("passo %s esiste gia" % pid); return 2
         deps = [x.strip() for x in dip.split(",") if x.strip() and x.strip() != "-"] if dip is not None else ([ultimo] if ultimo else [])
-        d["steps"].append({"id": pid, "testo": lib.redigi(testo, 140), "dipende_da": [x for x in deps if x in ids or x in [y["id"] for y in nuovi]], "chi": "agente", "stato": "DA_FARE", "agg": lib.ora()})
+        d["steps"].append({"id": pid, "testo": lib.redigi(testo, 140), "dipende_da": [x for x in deps if x in ids or x in [y["id"] for y in nuovi]], "chi": "agente", "stato": "DA_FARE", "agg": lib.ora(), "aggiunto": True})
         ids.add(pid); nuovi.append(d["steps"][-1]); ultimo = pid
     scrivi(f, d); print("aggiunti: %s" % " ".join(s["id"] for s in nuovi)); return 0
 
@@ -275,7 +275,14 @@ def passo_breve(a):
         except Exception: pass
     with contextlib.redirect_stdout(buf): rc = imposta(pid, st, nota, opz=o)
     if chiusi: print("(chiusi in automatico: %s)" % " ".join(chiusi))
-    print(buf.getvalue().strip() or "%s: %s" % (pid, M.canon(st) or st)); return rc
+    print(buf.getvalue().strip() or "%s: %s" % (pid, M.canon(st) or st))
+    if rc == 0 and st == "fatto" and not nota: print('Tip: close steps with the result, e.g. passo %s fatto "<numbers, files, outcome>" - the user reads it on the plan.' % pid)
+    if rc == 0 and f and st in ("fatto", "NON_NECESSARIO", "bloccato"):    # ultimo passo chiuso: ricorda quelli rimasti aperti, per non lasciarli a meta
+        try:
+            ap = [s["id"] for s in leggi(f)["steps"] if M.canon(s.get("stato")) in ("DA_FARE", "IN_CORSO")]
+            if ap and len(ap) <= 3: print("Still open: %s. Close each one (fatto/errore/saltato) before your final answer." % ", ".join(ap))
+        except Exception: pass
+    return rc
 
 
 def main(a):

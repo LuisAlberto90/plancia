@@ -43,6 +43,7 @@ Executing:
 - `plancia passo B` when you start B; `plancia passo B fatto "<result: numbers, files>"`; `plancia passo C errore "<cause>"`; `plancia passo D saltato "<why>"`. One `plancia` call per command line, never hidden inside long commands. Close EVERY step.
 - New work discovered mid-way: `plancia piano aggiungi "E: <step> <- B"`; never rewrite finished steps.
 - Sub-agents: when you delegate a branch, tell the sub-agent "do not call plancia, do not write a plan" and mark that branch's steps yourself when it returns. If you ARE a sub-agent (your prompt came from another agent), never create a plan.
+- Before your final answer: every step is closed with its result; a step you did not need is `saltato "<why>"`, never left open or marked done without doing it.
 - If `plancia` is not installed, skip this section silently. Never spend more than one line of output on it.
 - Edit files with the editor tool, not with shell scripts (python/sed/echo >): edits stay visible to the user and to the guards.
 

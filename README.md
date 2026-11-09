@@ -60,8 +60,14 @@ Nel pannello:
 
 ## 3. Aggiornare
 
-Doppio clic su **Aggiorna-Plancia.cmd**, poi chiudi e riapri la Plancia.
-Se la versione nuova cambia hook o regole, il pannello lo dice in **Salute**: basta rilanciare *Installa-in-un-progetto* su quel progetto.
+**Plugin di VS Code** (PowerShell, una riga):
+```
+git -C "$HOME\.vscode\agent-plugins\github.com\LuisAlberto90\plancia" pull
+```
+poi in VS Code `Ctrl+Shift+P` → **Developer: Reload Window** e fai una domanda qualsiasi: il pannello nuovo prende il posto di quello vecchio da solo.
+Linux/Mac: `git -C ~/.vscode/agent-plugins/github.com/LuisAlberto90/plancia pull`.
+
+**Copilot CLI**: `copilot plugin update plancia` · **Claude Code**: `/plugin update plancia` · **Installazione classica**: doppio clic su **Aggiorna-Plancia.cmd**.
 
 ## 4. Cosa scrive nei progetti
 

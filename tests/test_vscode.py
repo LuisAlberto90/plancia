@@ -103,4 +103,12 @@ check(st.strip() == "?? pom.xml", "plugin: nessun file del progetto toccato (%r)
 check((hp / ".plancia" / "hook.py").exists(), "plugin: avvio stabile per gli hook di Copilot/VS Code in ~/.plancia")
 x = subprocess.run([sys.executable, str(hp / ".plancia" / "hook.py"), "PreToolUse"], cwd=str(pp), env=envp, input=json.dumps({"toolName": "edit", "toolArgs": json.dumps({"path": str(pp / ".env")}), "sessionId": "c1", "cwd": str(pp)}), capture_output=True, text=True, encoding="utf-8", errors="replace")
 check('"deny"' in x.stdout and ".env" in x.stdout, "plugin (Copilot): .env bloccato passando dall'avvio stabile %s" % x.stdout[:120])
+
+# aderenza al piano: passo chiuso senza azioni, passo aperto a lavoro finito, modifica fuori piano
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from fcore import pannello as PNL
+st_ = [{"id": "A", "testo": "read x", "stato": "FATTO", "azioni": [{"tipo": "leggi"}], "dettaglio": "ok"}, {"id": "B", "testo": "edit y.java", "stato": "FATTO", "azioni": []},
+       {"id": "C", "testo": "run tests", "stato": "DA_FARE"}, {"id": "D", "testo": "Summary", "stato": "FATTO", "dettaglio": "done"}]
+ad = PNL._aderenza(st_, {"finita": True}, [{"cosa": "z.py"}])
+check(ad["voto"] < 60 and any("B" in n for n in ad["note"]) and any("C" in n for n in ad["note"]) and any("fuori" in n for n in ad["note"]), "aderenza: vede passi vuoti, aperti e modifiche fuori piano %s" % ad)
 print("%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

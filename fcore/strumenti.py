@@ -131,6 +131,11 @@ def proposte(rad, sk, ist, mc, tutte=False):
     doppie = sorted({n for n in nomi if nomi.count(n) > 1})
     for n in doppie:
         dov = [s["file"] for s in sk if s["nome"] == n]
+        if n == "plancia-metodo" and any(s["dove"].startswith("plugin") for s in sk if s["nome"] == n):
+            p.append({"id": "doppia-plancia-metodo", "titolo": "Il metodo della Plancia c'e due volte", "ambito": "tutti i progetti",
+                      "perche": "Una copia arriva dal plugin (si aggiorna da sola), l'altra e una copia vecchia installata a mano: l'agente potrebbe seguire quella vecchia.",
+                      "azione": {"tipo": "crea", "testo": "Tengo quella del plugin e tolgo le copie installate a mano."}})
+            continue
         p.append({"id": "doppia-" + _slug(n), "titolo": "La skill \u201c%s\u201d c'e due volte" % n, "ambito": "tutti i progetti",
                   "perche": "Con due copie l'agente non sa quale usare e puo seguire quella vecchia.",
                   "azione": {"tipo": "info", "testo": "Tieni una sola copia e cancella l'altra cartella:\n" + "\n".join(dov)}})
@@ -183,6 +188,11 @@ def azione_proposta(rad, pid, azione):
         if rc: return {"ok": False, "messaggio": "non sono riuscito a creare la skill"}
         _escludi_da_git(rad, ".claude/skills/%s-build-test/" % _slug2(rad.name))
         return {"ok": True, "messaggio": "Skill creata: da adesso l'agente usa questi comandi."}
+    elif azione == "crea" and pid == "doppia-plancia-metodo":
+        import shutil
+        for d in (Path.home() / ".claude" / "skills" / "plancia-metodo", Path.home() / ".copilot" / "skills" / "plancia-metodo"):
+            if (d / "SKILL.md").exists(): shutil.rmtree(d, ignore_errors=True)
+        return {"ok": True, "messaggio": "Fatto: resta solo il metodo del plugin."}
     elif azione == "crea" and pid == "skill-metodo":
         from fcore import metodo
         metodo.installa(globale=True, scrivi=True)
