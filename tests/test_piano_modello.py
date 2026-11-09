@@ -1,4 +1,4 @@
-"""Test del modello di piano (Lotto 2): validatore, classificazione, transizioni, compatibilità con piani storici. Sandbox in cartella temporanea; V62 solo letto."""
+"""Test del modello di piano: validatore, classificazione, transizioni, compatibilita con piani storici. Tutto in una cartella temporanea."""
 import os as _os; _os.environ.setdefault("FACTORY_EVENT_SOURCE", "test")      # i test non contaminano gli indicatori di produzione
 import os, shutil, subprocess, sys, tempfile
 from pathlib import Path
@@ -37,25 +37,24 @@ v("nuovo obiettivo", c("passiamo a un'altra dashboard per un nuovo cliente")["ty
 v("ambiguo: prudente, mai scartato", (lambda x: x["ambiguo"] and x["type"] in ("subtask", "clarification"))(c("ok")))
 
 # CLI in sandbox: transizioni, regressione, migrazione
-tmp = Path(tempfile.mkdtemp()); env = {**os.environ, "FACTORY_ROOT": str(tmp / "radice"), "FACTORY_PIANO": str(tmp / "t" / "piano.yaml")}
-(tmp / "t").mkdir()
-(tmp / "t" / "piano.yaml").write_text("task: t\nsteps:\n- {id: P1, testo: uno, dipende_da: [], chi: agente, stato: fatto}\n- {id: P2, testo: due, dipende_da: [P1], chi: agente, stato: problema, dettaglio: boh}\n", encoding="utf-8")
-cli = lambda *a: subprocess.run([sys.executable, str(ROOT / "fcore" / "piano.py"), *a], capture_output=True, text=True, env=env, cwd=ROOT)
-x = cli("passo", "P1", "in_corso"); v("riaprire un passo FATTO senza regressione è rifiutato", x.returncode == 2 and "regressione" in x.stdout)
-x = cli("passo", "P1", "in_corso", "--regressione", "il numero non torna"); v("con regressione dimostrata si riapre e resta nello storico", x.returncode == 0 and "regressione" in (tmp / "t" / "piano.yaml").read_text())
-x = cli("migra"); v("migra: anteprima, nessuna scrittura", "anteprima" in x.stdout and "problema" in (tmp / "t" / "piano.yaml").read_text())
-x = cli("migra", "--scrivi"); t = (tmp / "t" / "piano.yaml").read_text(); v("migra --scrivi: canonico + backup + storico", "stato: BLOCCATO" in t and "migrazione_stato" in t and list((tmp / "t").glob("piano.yaml.bak_*")))
-x = cli("valida", "--strict"); v("valida --strict segnala il blocco senza prossimo passo (exit 1)", x.returncode == 1 and "BLOCCO_SENZA_PROSSIMO_PASSO" in x.stdout)
-x = cli("evento", "per farlo serve anche un controllo", "--passo", "P2", "--applica"); t = (tmp / "t" / "piano.yaml").read_text()
-v("evento subtask: sottopasso P2.1, nessuna rinumerazione, richiesta registrata", "id: P2.1" in t and "parent: P2" in t and "richieste:" in t and "id: P1" in t)
-x = cli("evento", "inoltre aggiungi anche il filtro", "--applica"); v("evento ramo indipendente: R1", "id: R1" in (tmp / "t" / "piano.yaml").read_text())
-shutil.rmtree(tmp)
+try:
+    import yaml  # noqa: F401
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False; print("  (PyYAML non installato: salto le prove CLI sui piani .yaml)")
+if HAS_YAML:
+    tmp = Path(tempfile.mkdtemp()); env = {**os.environ, "FACTORY_ROOT": str(tmp / "radice"), "FACTORY_PIANO": str(tmp / "t" / "piano.yaml")}
+    (tmp / "t").mkdir()
+    (tmp / "t" / "piano.yaml").write_text("task: t\nsteps:\n- {id: P1, testo: uno, dipende_da: [], chi: agente, stato: fatto}\n- {id: P2, testo: due, dipende_da: [P1], chi: agente, stato: problema, dettaglio: boh}\n", encoding="utf-8")
+    cli = lambda *a: subprocess.run([sys.executable, str(ROOT / "fcore" / "piano.py"), *a], capture_output=True, text=True, env=env, cwd=ROOT)
+    x = cli("passo", "P1", "in_corso"); v("riaprire un passo FATTO senza regressione è rifiutato", x.returncode == 2 and "regressione" in x.stdout)
+    x = cli("passo", "P1", "in_corso", "--regressione", "il numero non torna"); v("con regressione dimostrata si riapre e resta nello storico", x.returncode == 0 and "regressione" in (tmp / "t" / "piano.yaml").read_text())
+    x = cli("migra"); v("migra: anteprima, nessuna scrittura", "anteprima" in x.stdout and "problema" in (tmp / "t" / "piano.yaml").read_text())
+    x = cli("migra", "--scrivi"); t = (tmp / "t" / "piano.yaml").read_text(); v("migra --scrivi: canonico + backup + storico", "stato: BLOCCATO" in t and "migrazione_stato" in t and list((tmp / "t").glob("piano.yaml.bak_*")))
+    x = cli("valida", "--strict"); v("valida --strict segnala il blocco senza prossimo passo (exit 1)", x.returncode == 1 and "BLOCCO_SENZA_PROSSIMO_PASSO" in x.stdout)
+    x = cli("evento", "per farlo serve anche un controllo", "--passo", "P2", "--applica"); t = (tmp / "t" / "piano.yaml").read_text()
+    v("evento subtask: sottopasso P2.1, nessuna rinumerazione, richiesta registrata", "id: P2.1" in t and "parent: P2" in t and "richieste:" in t and "id: P1" in t)
+    x = cli("evento", "inoltre aggiungi anche il filtro", "--applica"); v("evento ramo indipendente: R1", "id: R1" in (tmp / "t" / "piano.yaml").read_text())
+    shutil.rmtree(tmp)
 
-# compatibilità: V62 (fixture, sola lettura) deve restare leggibile e invariato
-v62 = ROOT / "08_LAVORI/in_corso/2026-10-13_V62_dash30_completamento/piano.yaml"
-if v62.exists():
-    import yaml, hashlib
-    h = hashlib.sha256(v62.read_bytes()).hexdigest(); d = yaml.safe_load(v62.read_text(encoding="utf-8")); r = M.valida(d)
-    v("V62 leggibile: nessuno stato sconosciuto", not any(a["codice"] == "STATO_SCONOSCIUTO" for a in r["anomalie"]), r["anomalie"][:2])
-    v("V62 invariato dopo la lettura", hashlib.sha256(v62.read_bytes()).hexdigest() == h)
 print(f"\n{ok} ok, {ko} KO"); sys.exit(1 if ko else 0)

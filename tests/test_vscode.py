@@ -93,7 +93,7 @@ check(x.returncode == 0 and not (d / ".factory" / "prove.jsonl").exists() and no
 pp = Path(tempfile.mkdtemp()) / "progX"; pp.mkdir(); (pp / "pom.xml").write_text("<project/>")
 subprocess.run(["git", "init", "-q"], cwd=pp)
 hp = Path(tempfile.mkdtemp())
-envp = dict(os.environ, HOME=str(hp), USERPROFILE=str(hp), PLANCIA_HOME=str(hp / ".plancia"), LAVAGNA_NO_PROC="1", PLANCIA_NO_PANNELLO="1"); envp.pop("FACTORY_ROOT", None)
+envp = dict(os.environ, HOME=str(hp), USERPROFILE=str(hp), PLANCIA_HOME=str(hp / ".plancia"), PLANCIA_NO_PROC="1", PLANCIA_NO_PANNELLO="1"); envp.pop("FACTORY_ROOT", None)
 def hp_(ev, **k):
     k["cwd"] = str(pp); return subprocess.run([sys.executable, str(Path(__file__).resolve().parent.parent / "factory.py"), "hook", ev, "--plugin"], cwd=str(pp), env=envp, input=json.dumps(k), capture_output=True, text=True)
 x = hp_("SessionStart", hook_event_name="SessionStart", session_id="p1")

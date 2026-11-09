@@ -8,7 +8,7 @@ def v(nome, cond, det=""):
     if cond: ok += 1; print("  ok  " + nome)
     else: ko += 1; print("  KO  %s %s" % (nome, str(det)[:400]))
 casa = Path(tempfile.mkdtemp()); lav = casa / "lavori"; env = {k: x for k, x in os.environ.items() if k not in ("FACTORY_ROOT", "FACTORY_PIANO", "CLAUDE_CONFIG_DIR")}
-env.update(HOME=str(casa), PLANCIA_HOME=str(casa / ".plancia"), PLANCIA_NO_PROC="1", CLAUDE_PROJECT_DIR="x")
+env.update(HOME=str(casa), USERPROFILE=str(casa), PLANCIA_HOME=str(casa / ".plancia"), PLANCIA_NO_PROC="1", CLAUDE_PROJECT_DIR="x")
 for k in ("VSCODE_PID", "TERM_PROGRAM"): env.pop(k, None)
 oggi = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
 def P(testo): return {"type": "user", "message": {"role": "user", "content": testo}}

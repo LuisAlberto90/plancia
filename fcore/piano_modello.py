@@ -1,4 +1,4 @@
-"""Modello canonico del piano (Lotto 2, V-63): stati, validatore deterministico, classificazione delle richieste. Nessun LLM, nessuna scrittura: funzioni pure.
+"""Modello canonico del piano : stati, validatore deterministico, classificazione delle richieste. Nessun LLM, nessuna scrittura: funzioni pure.
 Compatibilità: i piani storici (stati minuscoli: da_fare/in_corso/fatto/problema/bloccato/aspetta_utente) restano leggibili; canon() li traduce SOLO in lettura.
 Passo (campi opzionali oltre a quelli di piano.py): stato canonico, verification (none|pending|partial|passed), blocking (bool, default true se BLOCCATO), blocker_type
 (capability|dato|utente|ambiente|tecnico), blocker_reason, next_action, progress, evidence[], started_at, completed_at, agent, resource, acceptance_criteria[], parent, motivo, history[]."""

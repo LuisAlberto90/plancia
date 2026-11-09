@@ -132,7 +132,7 @@ def scrivi(p, d):
 
 
 def percorsi_piani():
-    """Schemi dei piani da cercare: quelli di default + .factory/percorsi.json {"piani": ["08_LAVORI/in_corso/*/piano.yaml"]}."""
+    """Schemi dei piani da cercare: quelli di default + .factory/percorsi.json {"piani": ["lavori/*/piano.yaml"]}."""
     extra = []
     try: extra = json.loads((dir_() / "percorsi.json").read_text(encoding="utf-8")).get("piani", [])
     except Exception: pass

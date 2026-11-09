@@ -24,4 +24,8 @@ jobs:
           ruff check fcore factory.py installa.py tests
           bandit -q -r fcore factory.py installa.py -ll
       - name: Tests
-        run: python tests/run_tests.py
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          pip install pyyaml
+          python tests/run_tests.py
