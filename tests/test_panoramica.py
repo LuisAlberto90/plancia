@@ -78,13 +78,14 @@ pa = lav / "alfa-lavora"; (pa / ".factory").mkdir(exist_ok=True)
 x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=env, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}
 v("SessionEnd: sessione tra le chiuse, progetto 'nessun agente aperto'", not pj["alfa-lavora"]["sessioni"] and len(pj["alfa-lavora"]["chiuse"]) == 1 and pj["alfa-lavora"]["stato_txt"] == "nessun agente aperto", pj["alfa-lavora"])
 # processi: senza un processo claude vivo nella cartella la sessione e chiusa; con un processo e aperta
-e2 = dict(env); e2.pop("PLANCIA_NO_PROC")
-x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=e2, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}
-v("processi: nessun claude vivo -> sessioni chiuse", not pj["beta-aspetta"]["sessioni"], pj["beta-aspetta"]["sessioni"])
-fk = lav / "beta-aspetta" / "claude"; fk.write_text("#!/bin/sh\nsleep 20\n"); fk.chmod(0o755)
-pr = subprocess.Popen([str(fk)], cwd=str(lav / "beta-aspetta")); time.sleep(0.5)
-x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=e2, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}; pr.kill()
-v("processi: un claude vivo -> la sessione piu recente e aperta", len(pj["beta-aspetta"]["sessioni"]) == 1 and pj["beta-aspetta"]["stato"] == "aspetta", pj["beta-aspetta"].get("processi"))
+if os.name != "nt":                                     # i processi si leggono da /proc: solo Linux
+    e2 = dict(env); e2.pop("PLANCIA_NO_PROC")
+    x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=e2, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}
+    v("processi: nessun claude vivo -> sessioni chiuse", not pj["beta-aspetta"]["sessioni"], pj["beta-aspetta"]["sessioni"])
+    fk = lav / "beta-aspetta" / "claude"; fk.write_text("#!/bin/sh\nsleep 20\n"); fk.chmod(0o755)
+    pr = subprocess.Popen([str(fk)], cwd=str(lav / "beta-aspetta")); time.sleep(0.5)
+    x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=e2, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}; pr.kill()
+    v("processi: un claude vivo -> la sessione piu recente e aperta", len(pj["beta-aspetta"]["sessioni"]) == 1 and pj["beta-aspetta"]["stato"] == "aspetta", pj["beta-aspetta"].get("processi"))
 
 # sotto-agenti in background (come Claude Code reale senza TaskCreate): rami dai lanci, ritorni uno per volta, poi sintesi
 def AG(i, desc): return {"type": "assistant", "message": {"id": "ag" + i, "model": "claude-x", "content": [{"type": "tool_use", "id": "ag" + i, "name": "Agent", "input": {"description": desc, "prompt": "...", "run_in_background": True}}]}}
