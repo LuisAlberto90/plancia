@@ -35,7 +35,7 @@ def skill(rad):
     h = Path.home(); out = []
     posti = [("progetto", Path(rad) / ".claude" / "skills"), ("progetto", Path(rad) / ".github" / "skills"), ("progetto", Path(rad) / ".agents" / "skills"),
              ("tutti i progetti (Claude)", h / ".claude" / "skills"), ("tutti i progetti (Copilot)", h / ".copilot" / "skills")]
-    for p in list((h / ".copilot" / "installed-plugins").glob("*/*/skills")) + list((h / ".copilot" / "installed-plugins").glob("*/skills")) + list((h / ".claude" / "plugins" / "cache").glob("*/*/*/skills")):
+    for p in list((h / ".copilot" / "installed-plugins").glob("*/*/skills")) + list((h / ".copilot" / "installed-plugins").glob("*/skills")) + list((h / ".claude" / "plugins" / "cache").glob("*/*/*/skills")) + _vscode_plugin_dirs("skills"):
         posti.append(("plugin " + p.parent.name, p))
     for dove, d in posti:
         for f in sorted(d.glob("*/SKILL.md")) if d.is_dir() else []:
@@ -85,8 +85,18 @@ def istruzioni(rad):
     return out
 
 
+def _vscode_plugin_dirs(sotto=None):
+    """Plugin installati dalla chat di VS Code (Chat: Install Plugin from Source): ~/.vscode/agent-plugins/<host>/<owner>/<repo>."""
+    base = Path.home() / ".vscode" / "agent-plugins"
+    out = [d for d in base.glob("*/*/*") if d.is_dir()] if base.is_dir() else []
+    return [d / sotto for d in out if (d / sotto).is_dir()] if sotto else out
+
+
 def plugin():
     out = []; h = Path.home()
+    for d in _vscode_plugin_dirs():
+        m = _json(d / ".github" / "plugin" / "plugin.json") or _json(d / ".claude-plugin" / "plugin.json") or _json(d / "plugin.json") or {}
+        out.append({"nome": m.get("name") or d.name, "versione": m.get("version"), "dove": "chat di VS Code"})
     for p in sorted((h / ".copilot" / "installed-plugins").glob("*/*")) + sorted((h / ".copilot" / "installed-plugins").glob("*")):
         m = _json(p / "plugin.json") or _json(p / ".claude-plugin" / "plugin.json") or _json(p / ".github" / "plugin" / "plugin.json")
         if m and m.get("name") not in [x["nome"] for x in out]: out.append({"nome": m.get("name"), "versione": m.get("version"), "dove": "Copilot CLI / VS Code"})

@@ -126,7 +126,7 @@ y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=Tru
 rq = S_["richieste"]
 v("richieste: la piu recente per prima, con comando e file modificato", rq[0]["domanda"] == "come si lanciano i test?" and rq[0]["comandi"] == ["ls tests"] and rq[0]["file"] == ["src/a.py"], rq[0])
 v("richieste: quella con i sotto-agenti ne conta 3", rq[1]["sotto_agenti"] == 3 and rq[1]["token_lavoro"] > 0, rq[1])
-v("piano: l'ultima richiesta era diretta -> nota, e il piano dei rami diventa storico", S_["nota_piano"] and "non ha diviso il lavoro in rami" in S_["nota_piano"] and S_["piani"][0]["task"].startswith("Richiesta delle"), (S_["nota_piano"], S_["piani"][0]["task"]))
+v("piano: l'ultima richiesta era diretta -> nota, e il piano dei rami diventa storico", S_["nota_piano"] and ("non ha un piano scritto" in S_["nota_piano"] or "era una domanda" in S_["nota_piano"]) and S_["piani"][0]["task"].startswith("Richiesta delle"), (S_["nota_piano"], S_["piani"][0]["task"]))
 v("riprendere: ultima domanda e file modificati", "come si lanciano i test?" in S_["riprendere"] and "src/a.py" in S_["riprendere"], S_["riprendere"])
 v("salute: spiega perche e come per ogni problema", all(c["perche"] and c["come"] for c in S_["salute"]["controlli"] if c["stato"] in ("ATTENZIONE", "KO")), S_["salute"])
 (pt / ".factory").mkdir(exist_ok=True)

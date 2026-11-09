@@ -53,8 +53,14 @@ def _salute(rad, piani, tasks, sess, eventi):
     elif gg > 14: add("Mappa del progetto", "ATTENZIONE", "aggiornata %d giorni fa" % gg, "se la struttura e cambiata l'agente parte da informazioni vecchie", cmd + " contesto --scrivi")
     else: add("Mappa del progetto", "OK", "aggiornata %s" % ("oggi" if gg < 1 else "%d giorni fa" % gg))
     sk = rad / ".claude" / "skills" / "plancia-metodo" / "SKILL.md"; skg = Path.home() / ".claude" / "skills" / "plancia-metodo" / "SKILL.md"
+    if not sk.exists() and not skg.exists():                            # installata come plugin: la skill e dentro il plugin
+        try:
+            from fcore import strumenti as ST_
+            if any(s["nome"] == "plancia-metodo" for s in ST_.skill(str(rad))): skg = Path(__file__).resolve().parent.parent / "skills" / "plancia-metodo" / "SKILL.md"
+        except Exception: pass
     add("Metodo per l'agente (skill)", "OK" if sk.exists() or skg.exists() else "ATTENZIONE", "installato" + (" per tutti i progetti" if skg.exists() else " nel progetto") if sk.exists() or skg.exists() else "non installato",
         "" if sk.exists() or skg.exists() else "senza metodo l'agente puo girare a vuoto, fare domande inutili o ripetere tentativi", "" if sk.exists() or skg.exists() else cmd + " metodo --globale --scrivi")
+    if not sess and any(e.get("fonte") in ("vscode", "agente") for e in hk): sess = [1]   # chat di VS Code: niente trascrizione, ma gli hook la vedono
     add("Sessioni degli agenti", "OK" if sess else "ATTENZIONE", "%d sessioni trovate" % len(sess) if sess else "nessuna sessione trovata per questa cartella",
         "" if sess else "la Plancia legge le trascrizioni di Claude Code e Copilot CLI: se non ne trova, la cartella dell'agente e diversa", "" if sess else "apri l'agente da questa cartella")
     aperti = [t["id"] for t in tasks if t["stato"] not in T.CHIUSE + ("ESEGUITO",)]
@@ -93,7 +99,11 @@ def stato_pannello(prompt=True, cc=None, cp=None):
         elif obbl: nota_piano = "L'agente ha modificato %d file senza piano anche con la guardia attiva: controlla in Salute che gli hook siano attivi e mandami le righe di .factory/eventi.jsonl." % len(mod)
         else: nota_piano = "Per l'ultima richiesta (\u201c%s\u201d) l'agente non ha scritto il piano (%d azioni). Il piano e solo consigliato: per renderlo obbligatorio `plancia init --piano obbligatorio --scrivi`." % (d0, len(rich[0]["attivita"]))
     elif rich and not rich[0].get("rami"):
-        nota_piano = "L'ultima richiesta (\u201c%s\u201d) non ha diviso il lavoro in rami: l'agente ha lavorato da solo, passo per passo. Sotto: cosa ha fatto, poi i piani delle richieste precedenti." % (rich[0]["domanda"].splitlines()[0][:90] if rich[0]["domanda"] else "")
+        dom = rich[0]["domanda"].splitlines()[0][:90] if rich[0]["domanda"] else ""
+        if not any(a["tipo"] in ("modifica", "comando") for a in rich[0]["attivita"]) and len(rich[0]["attivita"]) <= 15:
+            nota_piano = "L'ultima richiesta (\u201c%s\u201d) era una domanda: l'agente ha risposto leggendo pochi file, senza bisogno di un piano. Sotto: cosa ha letto." % dom
+        else:
+            nota_piano = "L'ultima richiesta (\u201c%s\u201d) non ha un piano scritto: l'agente ha lavorato passo per passo senza dichiararlo. Sotto: cosa ha fatto, poi i piani delle richieste precedenti." % dom
     inizio0 = RQ._ts(rich[0]["inizio"]) if rich else None
     for x in piani:                                                    # piano scritto dall'agente con `plancia piano nuovo` durante l'ultima richiesta
         try: d0 = json.loads(Path(x["file"]).read_text(encoding="utf-8")) if x.get("file", "").endswith(".json") else {}

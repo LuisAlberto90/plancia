@@ -106,6 +106,15 @@ sys.exit(0)
 '''
 
 
+def togli_vecchia_skill():
+    """La skill della vecchia Lavagna fa doppione con quella del plugin: la tolgo (solo se e proprio la nostra)."""
+    import shutil
+    for d in (Path.home() / ".claude" / "skills" / "lavagna-metodo", Path.home() / ".copilot" / "skills" / "lavagna-metodo"):
+        try:
+            if (d / "SKILL.md").exists() and "# Lavagna method" in (d / "SKILL.md").read_text(encoding="utf-8", errors="ignore"): shutil.rmtree(d, ignore_errors=True)
+        except Exception: pass
+
+
 def scrivi_boot():
     """~/.plancia/hook.py e root.txt: gli hook di Copilot CLI e VS Code chiamano questo file fisso, che sa dove sta la Plancia (anche dopo un aggiornamento)."""
     try:

@@ -24,9 +24,9 @@ def _plugin_sessione(d, ev, rad, store):
     f = store.dir_() / "_stato" / "regola_data.json"
     try: viste = json.loads(f.read_text(encoding="utf-8"))
     except Exception: viste = []
-    if str(ev).lower() == "sessionstart": auto.avvia_pannello(); auto.mappa_se_manca(rad)
+    if str(ev).lower() == "sessionstart": auto.avvia_pannello(); auto.mappa_se_manca(rad); auto.togli_vecchia_skill()
     if sid and sid in viste: return
-    if str(ev).lower() != "sessionstart": auto.avvia_pannello()
+    if str(ev).lower() != "sessionstart": auto.avvia_pannello(); auto.mappa_se_manca(rad); auto.togli_vecchia_skill()
     try: f.parent.mkdir(parents=True, exist_ok=True); f.write_text(json.dumps((viste + [sid])[-50:]), encoding="utf-8")
     except Exception: pass
     if (store.config().get("piano") or "obbligatorio") != "obbligatorio": return
