@@ -40,7 +40,7 @@ def main(a):
         rc = lancia(["archivia"], d); print("\nFatto: il pannello mostra solo il lavoro da adesso. Il vecchio e in .factory\\archivio."); return rc
     if "--diagnosi" in a:
         rc = lancia(["diagnosi"], d)
-        if os.name == "nt" and not os.environ.get("PLANCIA_NON_INTERATTIVO"): os.startfile(str(d / ".factory"))   # apre la cartella con lo zip
+        if os.name == "nt" and not os.environ.get("PLANCIA_NON_INTERATTIVO"): os.startfile(str(d / ".factory"))  # noqa: S606 - apre la cartella con lo zip
         print("\nManda lo zip diagnosi-....zip che trovi in %s" % (d / ".factory")); return rc
     print("Plancia -> progetto: %s" % d)
     (d / ".factory").mkdir(exist_ok=True)

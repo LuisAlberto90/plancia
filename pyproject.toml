@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "plancia"
-version = "0.16.2"
+version = "0.17.0"
 description = "Piano, task, guardie e handoff visibili per Claude Code, Copilot e ogni host MCP"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -23,3 +23,13 @@ packages = ["fcore"]
 
 [tool.setuptools.package-data]
 fcore = ["pannello.html"]
+
+[tool.ruff]
+line-length = 220
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E9", "F", "B", "S"]
+# Hook e pannello sono "fail-open" per scelta: un errore interno non deve mai bloccare l'agente (try/except/pass voluti).
+# subprocess sempre con lista di argomenti, mai shell=True. E701/E702: stile compatto voluto.
+ignore = ["S110", "S112", "S603", "S607", "S404", "S101", "E701", "E702", "E741", "B007", "B023", "F841"]

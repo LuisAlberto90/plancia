@@ -216,7 +216,7 @@ def classifica(s, notifica_ts=0):
 def _f(n): return "%.1fM" % (n / 1e6) if n >= 1e6 else "%.0fk" % (n / 1e3) if n >= 1e3 else str(n)
 
 
-def _eta(s): return "%ds" % s if s < 90 else "%d min" % (s // 60) if s < 5400 else "%d h" % (s // 3600)
+def _eta(s): return "%ds" % s if s < 90 else "%d min" % (s // 60) if s < 5400 else "%d ore" % (s // 3600) if s < 48 * 3600 else "%d giorni" % (s // 86400)
 
 
 def scheda(rad, soglia_token=None):
@@ -300,7 +300,17 @@ def scheda(rad, soglia_token=None):
     stato = aperte[0]["stato"] if aperte else "inattivo"
     try: piano = stato_piano(rad, aperte)
     except Exception: piano = None
-    return {"piano": piano, "radice": rad, "nome": Path(rad).name, "stato": stato, "stato_txt": NOMI[stato] if aperte else "nessun agente aperto", "sessioni": aperte[:4], "chiuse": [{k: s[k] for k in ("fonte", "id", "eta_txt", "domanda", "token_oggi")} for s in chiuse[:6]],
+    ultima = None
+    try:                                                                  # l'ultima richiesta, anche di settimane fa: per capire al volo dove eri rimasto
+        try: from . import richieste as RQ
+        except ImportError: import richieste as RQ
+        u = (RQ.tutte(rad, 1) or [None])[0]
+        if u:
+            ep = RQ._ts(u.get("fine") or u.get("inizio")) or 0
+            ultima = {"domanda": lib.redigi_testo(u.get("domanda") or "", 300), "fonte": u.get("fonte"), "finita": bool(u.get("finita")), "eta_txt": _eta(int(time.time() - ep)) if ep else "",
+                      "quando": time.strftime("%d/%m %H:%M", time.localtime(ep)) if ep else "", "modifiche": len(u.get("file") or []), "errori": u.get("errori") or 0, "risposta": lib.redigi_testo(u.get("risposta") or "", 1200)}
+    except Exception: pass
+    return {"piano": piano, "ultima": ultima, "radice": rad, "nome": Path(rad).name, "stato": stato, "stato_txt": NOMI[stato] if aperte else "nessun agente aperto", "sessioni": aperte[:4], "chiuse": [{k: s[k] for k in ("fonte", "id", "eta_txt", "domanda", "token_oggi")} for s in chiuse[:6]],
             "processi": pr, "attenzione": [{"tipo": a, "testo": b} for a, b in att[:6]],
             "token_oggi": tok, "token_txt": _f(tok), "task": task, "plancia": (Path(rad) / ".factory").is_dir()}
 

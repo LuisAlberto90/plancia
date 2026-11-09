@@ -66,7 +66,7 @@ def _azione(n, i, cwd):
         if w: return "modifica", ", ".join(w[:3]) + " (con un comando)"
         return "comando", lib.redigi(cmd, 90)
     if not f and nl == "apply_patch":                                   # VS Code: il file sta dentro la patch
-        fs = re.findall(r"\*\*\* (?:Update|Add|Delete) File:\s*(\S+)", str(i.get("input") or i.get("patch") or ""))
+        fs = re.findall(r"(?m)^\*\*\* (?:Update|Add|Delete) File:[ \t]*(.+?)[ \t]*\r?$", str(i.get("input") or i.get("patch") or ""))
         if fs:
             f = ", ".join(fs[:3])
             if cwd:

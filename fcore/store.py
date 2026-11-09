@@ -119,7 +119,7 @@ def leggi(p):
     p = Path(p); t = p.read_text(encoding="utf-8")
     if p.suffix == ".json": return normalizza(json.loads(t))
     try: import yaml
-    except ImportError: raise RuntimeError("il piano %s e in YAML: installa PyYAML (pip install pyyaml) oppure usa un piano .json" % p.name)
+    except ImportError: raise RuntimeError("il piano %s e in YAML: installa PyYAML (pip install pyyaml) oppure usa un piano .json" % p.name) from None
     return normalizza(yaml.safe_load(t))
 
 

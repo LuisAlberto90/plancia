@@ -82,10 +82,10 @@ def avvia_pannello():
         try:                                                              # c'e una Plancia piu vecchia (prima dell'aggiornamento)? le chiedo il posto
             import urllib.request
             from fcore import mcp as _m
-            with urllib.request.urlopen("http://127.0.0.1:8780/api/versione", timeout=1) as r: v = json.loads(r.read().decode()).get("versione") or ""
+            with urllib.request.urlopen("http://127.0.0.1:8780/api/versione", timeout=1) as r: v = json.loads(r.read().decode()).get("versione") or ""  # noqa: S310  # nosec B310
             vt = lambda s: tuple(int(x) for x in s.split(".") if x.isdigit())
             if not vt(v) or vt(v) >= vt(_m.VERSIONE): return
-            urllib.request.urlopen("http://127.0.0.1:8780/api/lascia?v=" + _m.VERSIONE, timeout=1).read()
+            urllib.request.urlopen(urllib.request.Request("http://127.0.0.1:8780/api/lascia?v=" + _m.VERSIONE, headers={"X-Plancia": "1"}), timeout=1).read()  # noqa: S310  # nosec B310
             for _ in range(15):
                 time.sleep(0.2)
                 if not pannello_acceso(): break

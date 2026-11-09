@@ -5,7 +5,6 @@
   plancia prove rapporto        riepilogo degli esiti
 Le prove controllano la Plancia (piano, rami, passi, guardie, ambiente), non la qualita della risposta dell'agente."""
 import json, os, re, sys, time
-from pathlib import Path
 try: from . import store as lib, richieste as RQ, piano_modello as M
 except ImportError: import store as lib, richieste as RQ, piano_modello as M
 

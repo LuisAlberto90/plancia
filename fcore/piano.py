@@ -12,7 +12,7 @@ Stati canonici: DA_FARE IN_CORSO FATTO VERIFICATO BLOCCATO NON_NECESSARIO. Opzio
 --tipo-blocco T --causa T --prossimo T --motivo T --regressione T (obbligatoria per riportare a DA_FARE/IN_CORSO un passo completato).
 Passo: id, testo (italiano semplice), dipende_da [ids], chi (agente|script|controllore|utente), stato, dettaglio (una riga).
 Piano attivo: variabile FACTORY_PIANO oppure .factory/_stato/piano_attivo.json. Formato nativo .json; i .yaml si leggono con PyYAML."""
-import os, re, sys, time
+import re, sys, time
 from pathlib import Path
 try: from . import store as lib, piano_modello as M
 except ImportError: import store as lib, piano_modello as M

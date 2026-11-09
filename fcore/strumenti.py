@@ -105,31 +105,110 @@ def plugin():
     return out
 
 
-def proposte(rad, sk, ist, mc):
-    """Suggerimenti concreti e brevi. Ognuno dice perche e come."""
-    p = []; r = Path(rad); nomi = [s["nome"] for s in sk]
-    if "plancia-metodo" not in nomi: p.append({"cosa": "Manca la skill plancia-metodo", "perche": "senza, l'agente pianifica e verifica a modo suo", "come": lib.comando() + " metodo --globale --scrivi"})
+def _ambito(dove):
+    return "tutti i progetti" if dove.startswith("tutti") else ("solo questo progetto" if dove == "progetto" else "tutti i progetti (" + dove + ")")
+
+
+def _rifiutate(rad):
+    try: return set(json.loads((Path(rad) / ".factory" / "proposte.json").read_text(encoding="utf-8")).get("rifiutate") or [])
+    except Exception: return set()
+
+
+def _comandi_build(rad):
+    ctx = Path(rad) / ".factory" / "CONTESTO.md"
+    t = ctx.read_text(encoding="utf-8", errors="ignore") if ctx.exists() else ""
+    return [(k.strip(), v) for k, v in re.findall(r"(?m)^- ([^`]+?): `([^`]+)`", t) if re.search(r"\b(build|test)\b", k)], t
+
+
+def proposte(rad, sk, ist, mc, tutte=False):
+    """Suggerimenti in parole semplici. Ognuno ha: id stabile, titolo, perche, ambito (tutti i progetti / solo questo) e un'azione:
+    'crea' = la Plancia lo fa da sola con un clic; 'prompt' = testo pronto da incollare in chat; 'info' = solo da sapere."""
+    p = []; r = Path(rad); nomi = [s["nome"] for s in sk]; nome_p = r.name
+    if "plancia-metodo" not in nomi:
+        p.append({"id": "skill-metodo", "titolo": "Insegna all'agente il metodo della Plancia", "ambito": "tutti i progetti",
+                  "perche": "Senza, l'agente decide da solo come lavorare: a volte non scrive il piano, fa giri a vuoto o dichiara finito senza provare.",
+                  "azione": {"tipo": "crea", "testo": "Installa la skill plancia-metodo per tutti i tuoi progetti."}})
     doppie = sorted({n for n in nomi if nomi.count(n) > 1})
-    if doppie: p.append({"cosa": "Skill doppie: " + ", ".join(doppie), "perche": "due copie con lo stesso nome confondono l'agente", "come": "tieni una sola copia (vedi la colonna 'dove')"})
+    for n in doppie:
+        dov = [s["file"] for s in sk if s["nome"] == n]
+        p.append({"id": "doppia-" + _slug(n), "titolo": "La skill \u201c%s\u201d c'e due volte" % n, "ambito": "tutti i progetti",
+                  "perche": "Con due copie l'agente non sa quale usare e puo seguire quella vecchia.",
+                  "azione": {"tipo": "info", "testo": "Tieni una sola copia e cancella l'altra cartella:\n" + "\n".join(dov)}})
     tot = sum(x["token"] for x in ist if x["sempre"])
-    if tot > 3000: p.append({"cosa": "Istruzioni lunghe: ~%d token letti a ogni sessione" % tot, "perche": "si pagano a ogni domanda, anche la piu semplice", "come": "sposta le parti specifiche in skill (si caricano solo quando servono)"})
-    if len(mc) > 6: p.append({"cosa": "%d server MCP attivi" % len(mc), "perche": "ogni server aggiunge la descrizione dei suoi strumenti al contesto", "come": "spegni quelli che non usi in questo progetto"})
-    ctx = r / ".factory" / "CONTESTO.md"
-    if ctx.exists() and not any(s["dove"] == "progetto" and s["nome"].endswith("-build-test") for s in sk):
-        if re.search(r"(?m)^- [^`]*\b(build|test)\b[^`]*: `", ctx.read_text(encoding="utf-8", errors="ignore")):
-            p.append({"cosa": "Skill del progetto per build e test", "perche": "l'agente usa subito i comandi giusti (anche Maven/JDK fuori dal PATH) invece di cercarli a ogni richiesta", "come": lib.comando() + " skill-progetto --scrivi"})
-    st = (ctx.read_text(encoding="utf-8", errors="ignore") if ctx.exists() else "")
-    if "Java" in st and not any("junit" in (s["nome"] + s["descrizione"]).lower() or "spring" in (s["nome"] + s["descrizione"]).lower() for s in sk):
-        p.append({"cosa": "Progetto Java senza skill per i test", "perche": "le prove con modifiche (9, 10) vanno meglio se l'agente sa come scrivere test JUnit qui", "come": "dopo la skill build-test, chiedi alla chat: \"write a project skill on how tests are written in this repo (look at 2 existing tests)\""})
+    if tot > 3000:
+        p.append({"id": "istruzioni-lunghe", "titolo": "Le istruzioni fisse costano ~%d token a ogni domanda" % tot, "ambito": "solo questo progetto",
+                  "perche": "Le istruzioni fisse (AGENTS.md, CLAUDE.md, copilot-instructions) si pagano anche per la domanda piu semplice. Le skill invece si leggono solo quando servono.",
+                  "azione": {"tipo": "prompt", "testo": "Read %s. Keep in them only the rules that apply to EVERY request (max ~40 lines). Move each specific topic (how to test, how to deploy, conventions of one module) into its own project skill under .claude/skills/<topic>/SKILL.md with a one-line description of when to use it. Do not lose any rule. Show me the diff before saving." % ", ".join(x["file"] for x in ist if x["sempre"])}})
+    if len(mc) > 6:
+        p.append({"id": "mcp-troppi", "titolo": "%d server MCP accesi" % len(mc), "ambito": "solo questo progetto",
+                  "perche": "Ogni server MCP aggiunge la descrizione dei suoi strumenti a ogni domanda: piu sono, piu consumi e piu l'agente si confonde.",
+                  "azione": {"tipo": "info", "testo": "Spegni quelli che non usi in questo progetto (in VS Code: icona strumenti nella chat, oppure .vscode/mcp.json)."}})
+    cm, ctx = _comandi_build(rad)
+    if cm and not any(s["nome"].endswith("-build-test") for s in sk if s["dove"] == "progetto"):
+        p.append({"id": "skill-build-test", "titolo": "Comandi di build e test sempre pronti", "ambito": "solo questo progetto",
+                  "perche": "L'agente usa subito i comandi giusti (anche Maven o JDK fuori dal PATH) invece di cercarli a ogni richiesta. La Plancia li conosce gia: " + "; ".join("%s = %s" % (k, v) for k, v in cm[:3]) + ("…" if len(cm) > 3 else ""),
+                  "azione": {"tipo": "crea", "testo": "Crea la skill del progetto con questi comandi (resta sul tuo PC: esclusa da git)."}})
+    java = "Java" in ctx
+    test_java = [s for s in sk if re.search(r"junit|java test|spring", (s["nome"] + " " + s["descrizione"]).lower())]
+    if java and not test_java:
+        dirs = re.findall(r"(?m)^- `([^`]*src/test[^`]*)`", ctx)[:3]
+        p.append({"id": "skill-test-java", "titolo": "Come si scrivono i test in questo progetto Java", "ambito": "solo questo progetto",
+                  "perche": "Quando chiedi di aggiungere o sistemare test, l'agente copia lo stile giusto (librerie, mock, nomi) invece di inventarlo.",
+                  "azione": {"tipo": "prompt", "testo": "Create a project skill at .claude/skills/%s-java-tests/SKILL.md (then add .claude/skills/%s-java-tests/ to .git/info/exclude). Look at 2-3 existing tests%s and write in max 40 lines: test framework and versions, how mocks/fixtures are done, naming, where new tests go, the exact command to run one test class and the whole suite (see .factory/CONTESTO.md). Only facts you saw in the code. Plan first." % (_slug(nome_p), _slug(nome_p), " in " + ", ".join(dirs) if dirs else "")}})
     ang = (r / "angular.json").exists() or any(r.glob("*/angular.json"))
     if ang and not any("angular" in (s["nome"] + s["descrizione"]).lower() for s in sk):
-            p.append({"cosa": "Progetto Angular senza skill dedicata", "perche": "evita che l'agente provi comandi npm a caso", "come": "chiedi alla chat: \"write a project skill on how to build and test the Angular app here (check package.json and karma/jest config)\""})
-    return p
+        p.append({"id": "skill-angular", "titolo": "Come si costruisce e si prova il frontend Angular", "ambito": "solo questo progetto",
+                  "perche": "Evita che l'agente provi comandi npm a caso o rompa la configurazione dei test.",
+                  "azione": {"tipo": "prompt", "testo": "Create a project skill at .claude/skills/%s-angular/SKILL.md (then add .claude/skills/%s-angular/ to .git/info/exclude). Read package.json, angular.json and the test config (karma/jest) and write in max 40 lines: how to install, build, serve and test, which test runner and how specs are written here, known pitfalls. Only facts you saw. Plan first." % (_slug(nome_p), _slug(nome_p))}})
+    rif = _rifiutate(rad)
+    for x in p: x["rifiutata"] = x["id"] in rif
+    return p if tutte else [x for x in p if not x["rifiutata"]]
+
+
+def _slug(s): return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:30] or "progetto"
+
+
+def azione_proposta(rad, pid, azione):
+    """Dal pannello: rifiuta / ripristina una proposta, oppure 'crea' (solo per quelle che la Plancia sa fare da sola)."""
+    rad = Path(rad); f = rad / ".factory" / "proposte.json"
+    try: d = json.loads(f.read_text(encoding="utf-8"))
+    except Exception: d = {}
+    rif = set(d.get("rifiutate") or [])
+    if azione == "rifiuta": rif.add(pid)
+    elif azione == "ripristina": rif.discard(pid)
+    elif azione == "crea" and pid == "skill-build-test":
+        os.environ["FACTORY_ROOT"] = str(rad)
+        import contextlib, io
+        with contextlib.redirect_stdout(io.StringIO()): rc = skill_progetto(True)
+        if rc: return {"ok": False, "messaggio": "non sono riuscito a creare la skill"}
+        _escludi_da_git(rad, ".claude/skills/%s-build-test/" % _slug2(rad.name))
+        return {"ok": True, "messaggio": "Skill creata: da adesso l'agente usa questi comandi."}
+    elif azione == "crea" and pid == "skill-metodo":
+        from fcore import metodo
+        metodo.installa(globale=True, scrivi=True)
+        return {"ok": True, "messaggio": "Metodo installato per tutti i tuoi progetti."}
+    else: return {"ok": False, "messaggio": "azione non valida"}
+    d["rifiutate"] = sorted(rif); f.write_text(json.dumps(d, indent=1), encoding="utf-8")
+    return {"ok": True}
+
+
+def _slug2(n): return re.sub(r"[^a-z0-9]+", "-", n.lower()).strip("-")[:40]
+
+
+def _escludi_da_git(rad, voce):
+    ex = Path(rad) / ".git" / "info" / "exclude"
+    try:
+        if (Path(rad) / ".git").is_dir() and voce not in (ex.read_text(encoding="utf-8") if ex.exists() else ""):
+            with open(ex, "a", encoding="utf-8") as h: h.write("\n" + voce + "\n")
+    except Exception: pass
 
 
 def tutto(rad=None):
     rad = str(rad or lib.radice()); sk, mc, ist = skill(rad), mcp(rad), istruzioni(rad)
-    return {"progetto": rad, "skill": sk, "mcp": mc, "hook": hook(rad), "istruzioni": ist, "plugin": plugin(), "proposte": proposte(rad, sk, ist, mc)}
+    for s in sk: s["ambito"] = _ambito(s["dove"])
+    pr = proposte(rad, sk, ist, mc, tutte=True)
+    return {"progetto": rad, "skill": sk, "mcp": mc, "hook": hook(rad), "istruzioni": ist, "plugin": plugin(),
+            "proposte": [x for x in pr if not x["rifiutata"]], "rifiutate": [x for x in pr if x["rifiutata"]]}
 
 
 def skill_progetto(scrivi=False):
@@ -158,7 +237,7 @@ def main(a):
     print("Server MCP:"); [print("  %-28s %s" % (m["nome"], m["dove"])) for m in d["mcp"]]
     print("Hook: %d (%d della Plancia)" % (len(d["hook"]), sum(h["nostro"] for h in d["hook"])))
     print("Istruzioni:"); [print("  %-40s ~%d token%s" % (i["file"], i["token"], "" if i["sempre"] else " (solo quando servono)")) for i in d["istruzioni"]]
-    if d["proposte"]: print("Proposte:"); [print("  - %s: %s -> %s" % (p["cosa"], p["perche"], p["come"])) for p in d["proposte"]]
+    if d["proposte"]: print("Proposte:"); [print("  - [%s] %s (%s)\n    %s\n    -> %s" % (p["id"], p["titolo"], p["ambito"], p["perche"], p["azione"]["testo"])) for p in d["proposte"]]
     return 0
 
 

@@ -51,12 +51,12 @@ poi doppio clic su **Installa-in-un-progetto.cmd** per ogni progetto (scrive reg
 | Prendere l'ultima versione | **Aggiorna-Plancia.cmd** |
 
 Nel pannello:
-- **Progetti**: una scheda per progetto. Il riquadro del piano dice "l'agente sta scrivendo il piano…" e poi "Piano pronto → Vedi il piano". Il pulsante 🔔 attiva le notifiche quando un agente ha finito o aspetta te.
-- **Piano**: il grafo dell'ultima richiesta, con voto di qualità (0-10). Clic su un passo = cosa ha fatto (file, comandi, errori).
-- **Richieste**, **Riprendere**: cosa è successo e da dove ripartire domani.
-- **Salute**: cosa non va e il comando per sistemarlo.
-- **Strumenti**: skill, server MCP, hook, istruzioni e plugin che gli agenti usano in quel progetto, con quanti token costano e cosa conviene aggiungere.
-- **Prove**: 10 prove guidate per verificare che tutto funzioni su un progetto vero (dalla domanda semplice al refactoring su un ramo git).
+- **Progetti**: una scheda per progetto, scritta in chiaro: cosa sta facendo l'agente adesso, **l'ultima cosa che hai chiesto** (anche se è di settimane fa), se è finita, quanti file ha toccato e il **piano** ("l'agente sta scrivendo il piano…" → "Piano pronto → Vedi il piano"). Le conversazioni più vecchie sono raccolte sotto *Altre conversazioni*. Il pulsante 🔔 attiva le notifiche.
+- **Piano**: il grafo dei passi dell'ultima richiesta, con voto di qualità (0-10). Clic su un passo = cosa ha fatto (file, comandi, errori).
+- **Richieste**, **Riprendere**: cosa è successo e da dove ripartire.
+- **Salute**: cosa non va e come sistemarlo.
+- **Strumenti**: le *skill* (guide che l'agente legge solo quando servono), le istruzioni fisse (lette a ogni domanda: costano sempre) e le **proposte**: per ognuna dici *Sì* (la Plancia la crea da sola, o ti dà il testo pronto da incollare in chat) o *No* (non te la ripropone più per quel progetto). Le skill "per tutti i progetti" valgono ovunque; quelle "solo questo progetto" restano lì, escluse da git.
+- **Prove** (nascosta): `http://127.0.0.1:8780/?prove=1` — 10 prove guidate per chi sviluppa la Plancia.
 
 ## 3. Aggiornare
 
@@ -84,5 +84,5 @@ Gli hook non salvano mai segreti; i prompt sono salvati accorciati e ripuliti. `
 | `prove`, `prove verifica N` | le prove guidate |
 | `archivia`, `diagnosi`, `salute` | storico, zip di supporto, controlli |
 
-Test della Plancia stessa: `python tests/run_tests.py` (il test del pannello nel browser richiede `playwright`, altrimenti viene saltato).
+Test della Plancia stessa: `python tests/run_tests.py` (il test del pannello nel browser richiede `playwright`, altrimenti viene saltato). Lint e sicurezza: `ruff check .` e `bandit -r fcore -ll`. Vedi anche [SECURITY.md](SECURITY.md).
 

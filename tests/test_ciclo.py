@@ -35,6 +35,7 @@ ev = (d / ".factory/eventi.jsonl").read_text(); v("hook: evento scritto, nessun 
 x = run("hook", "UserPromptSubmit", stdin=json.dumps({"hook_event_name": "UserPromptSubmit", "cwd": str(d)})); v("hook UserPromptSubmit: promemoria del piano come contesto per Claude Code", x.returncode == 0 and "additionalContext" in x.stdout and "[Plancia]" in x.stdout)
 x = run("hook", "x", stdin="non json"); v("hook con input rotto: exit 0 e silenzio", x.returncode == 0 and not x.stdout and not x.stderr)
 x = run("pannello", "--esporta", str(d / "p.html")); h = (d / "p.html").read_text(encoding="utf-8"); v("esporta: HTML autonomo con i dati", x.returncode == 0 and "SNAPSHOT" in h and "Analisi" not in h and "T1" in h)
-x = run("pannello", "--host", "0.0.0.0"); v("in rete senza token rifiutato", x.returncode == 2)
+x = run("pannello", "--host", "0.0.0.0"); v(  # noqa: S104 - prova che senza token e rifiutato
+  "in rete senza token rifiutato", x.returncode == 2)
 x = run("salute"); v("salute risponde", x.returncode in (0, 1) and "Salute:" in x.stdout)
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

@@ -4,12 +4,12 @@
   pannello --esporta file.html                                          un solo file da condividere (foto del momento, senza testi dei prompt)
   pannello --json                                                       stampa lo stato
 In rete (--host diverso da 127.0.0.1) il token e obbligatorio."""
-import argparse, json, os, sys, time
+import argparse, json, os, re, sys, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
-try: from . import store as lib, piano_modello as M, task as T, handoff as H, sessioni as S, panoramica as PN, richieste as RQ
-except ImportError: import store as lib, piano_modello as M, task as T, handoff as H, sessioni as S, panoramica as PN, richieste as RQ
+try: from . import store as lib, piano_modello as M, task as T, sessioni as S, panoramica as PN, richieste as RQ
+except ImportError: import store as lib, piano_modello as M, task as T, sessioni as S, panoramica as PN, richieste as RQ
 import threading
 BLOCCO = threading.Lock()
 
@@ -180,6 +180,7 @@ def main(a):
         def log_message(self, *x): pass
         def do_GET(self):
             u = urlparse(self.path)
+            if not self._stessa_origine(): self.send_response(403); self.end_headers(); return      # altri siti nel browser non possono leggere la Plancia
             if o.token and parse_qs(u.query).get("token", [""])[0] != o.token: self.send_response(403); self.end_headers(); return
             q = parse_qs(u.query).get("p", [""])[0]
             if u.path == "/api/panoramica":
@@ -231,19 +232,56 @@ def main(a):
                 from fcore import mcp as _m
                 nv = parse_qs(u.query).get("v", [""])[0]
                 vt = lambda s: tuple(int(x) for x in s.split(".") if x.isdigit())
-                if self.client_address[0] != "127.0.0.1" or not nv or vt(nv) <= vt(_m.VERSIONE): self.send_response(403); self.end_headers(); return
+                if self.client_address[0] != "127.0.0.1" or self.headers.get("X-Plancia") != "1" or not nv or vt(nv) <= vt(_m.VERSIONE): self.send_response(403); self.end_headers(); return
                 self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
                 import threading; threading.Thread(target=lambda: (time.sleep(0.3), os._exit(0)), daemon=True).start(); return
             elif u.path == "/": body, ct = html().encode(), "text/html; charset=utf-8"
             else: self.send_response(404); self.end_headers(); return
-            self.send_response(200); self.send_header("Content-Type", ct); self.send_header("Cache-Control", "no-store"); self.end_headers(); self.wfile.write(body)
+            self.send_response(200); self.send_header("Content-Type", ct); self._sicurezza()
+            if ct.startswith("text/html"): self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+            self.end_headers(); self.wfile.write(body)
         def _no(self): self.send_response(405); self.end_headers()
-        do_POST = do_PUT = do_DELETE = do_PATCH = _no
+        do_PUT = do_DELETE = do_PATCH = _no
+
+        def do_POST(self):
+            """Unica scrittura: accetta/rifiuta una proposta della scheda Strumenti. Solo dal pannello stesso (stessa origine), mai da altri siti."""
+            u = urlparse(self.path)
+            if u.path != "/api/proposta" or not self._stessa_origine(): self.send_response(403); self.end_headers(); return
+            if o.token and parse_qs(u.query).get("token", [""])[0] != o.token: self.send_response(403); self.end_headers(); return
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                if n > 4096 or "application/json" not in (self.headers.get("Content-Type") or ""): raise ValueError("richiesta non valida")
+                d = json.loads(self.rfile.read(n).decode("utf-8"))
+                q, pid, az = str(d.get("p") or ""), str(d.get("id") or ""), str(d.get("azione") or "")
+                if q not in PN.progetti() or not re.fullmatch(r"[a-z0-9-]{1,60}", pid) or az not in ("rifiuta", "ripristina", "crea"): raise ValueError("richiesta non valida")
+                with BLOCCO:
+                    try:
+                        from fcore import strumenti as ST
+                    except ImportError:
+                        from . import strumenti as ST
+                    r = ST.azione_proposta(q, pid, az)
+                    os.environ["FACTORY_ROOT"] = str(rad)
+                body = json.dumps(r, ensure_ascii=False).encode()
+                self.send_response(200)
+            except Exception as e:
+                body = json.dumps({"ok": False, "messaggio": str(e)[:200]}).encode(); self.send_response(400)
+            self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(body))); self._sicurezza(); self.end_headers(); self.wfile.write(body)
+
+        def _stessa_origine(self):
+            """Contro DNS rebinding e richieste da altri siti: Host deve essere il pannello, Origin (se c'e) uguale."""
+            h = (self.headers.get("Host") or "").lower()
+            ok_h = h in ("127.0.0.1:%d" % o.porta, "localhost:%d" % o.porta, "[::1]:%d" % o.porta) or (o.host not in ("127.0.0.1", "localhost") and bool(o.token))
+            org = self.headers.get("Origin")
+            return ok_h and (org is None or org.lower() in ("http://" + h,))
+
+        def _sicurezza(self):
+            self.send_header("X-Content-Type-Options", "nosniff"); self.send_header("X-Frame-Options", "DENY"); self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Cache-Control", "no-store")
 
     from fcore import mcp as _m
     try:                                                              # c'e gia un pannello acceso su questa porta?
         import urllib.request
-        with urllib.request.urlopen("http://127.0.0.1:%d/api/versione" % o.porta, timeout=1.5) as rsp: gia = json.loads(rsp.read().decode())
+        with urllib.request.urlopen("http://127.0.0.1:%d/api/versione" % o.porta, timeout=1.5) as rsp: gia = json.loads(rsp.read().decode())  # noqa: S310  # nosec B310
     except Exception: gia = None
     if gia and gia.get("versione") == _m.VERSIONE and not o.token:
         from urllib.parse import quote
@@ -268,6 +306,7 @@ def main(a):
         try: srv = Srv((o.host, porta), Hd); break
         except OSError: continue
     else: print("Nessuna porta libera tra %d e %d (pannello gia avviato?)" % (o.porta, o.porta + 9)); return 2
+    o.porta = porta                                                      # la porta vera: serve al controllo Host
     url = "http://%s:%d/%s" % (o.host, porta, "?token=" + o.token if o.token else "")
     print("Pannello su", url, "(progetto %s) - Ctrl+C per fermare" % rad, flush=True)
     if not o.no_browser and o.host == "127.0.0.1":

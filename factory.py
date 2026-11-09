@@ -75,7 +75,7 @@ def _nostro(x): s = json.dumps(x); return "plancia hook" in s or "lavagna hook" 
 
 def _json(p):
     try: return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
-    except Exception: raise SystemExit("%s non e JSON valido: correggilo a mano, non lo sovrascrivo" % p)
+    except Exception: raise SystemExit("%s non e JSON valido: correggilo a mano, non lo sovrascrivo" % p) from None
 
 
 def _salva_json(p, d):

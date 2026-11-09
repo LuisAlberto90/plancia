@@ -1,6 +1,6 @@
 """Test del modello di piano (Lotto 2): validatore, classificazione, transizioni, compatibilità con piani storici. Sandbox in cartella temporanea; V62 solo letto."""
 import os as _os; _os.environ.setdefault("FACTORY_EVENT_SOURCE", "test")      # i test non contaminano gli indicatori di produzione
-import json, os, shutil, subprocess, sys, tempfile
+import os, shutil, subprocess, sys, tempfile
 from pathlib import Path
 QUI = Path(__file__).resolve().parent; ROOT = QUI.parent; sys.path.insert(0, str(ROOT / 'fcore'))
 import piano_modello as M

@@ -6,7 +6,7 @@
   policy init [--scrivi]                crea .factory/policy.json con i default (da adattare al progetto)
 Gli hook PreToolUse (Claude Code) e preToolUse (Copilot) chiamano la stessa verifica e negano l'azione con il motivo.
 Le guardie fermano gli errori dell'agente, non sostituiscono permessi di sistema o credenziali read-only."""
-import fnmatch, json, os, re, sys
+import fnmatch, json, re, sys
 from pathlib import Path
 try: from . import store as lib
 except ImportError: import store as lib

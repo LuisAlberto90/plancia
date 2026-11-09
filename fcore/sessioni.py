@@ -1,6 +1,6 @@
 """Sessioni degli assistenti (Claude Code e Copilot CLI): consumo, strumenti, hook, e piano ricavato da TaskCreate/TodoWrite.
 Sola lettura: ~/.claude/projects/<cartella>/*.jsonl e ~/.copilot/session-state/*/events.jsonl. Nessun hook necessario."""
-import glob, json, os, re, time
+import glob, json, os, re
 
 HOME = os.path.expanduser("~")
 STATI = {"da_fare": "DA_FARE", "pending": "DA_FARE", "in_corso": "IN_CORSO", "in_progress": "IN_CORSO", "fatto": "FATTO", "completed": "FATTO",
