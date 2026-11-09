@@ -14,7 +14,7 @@ env = dict(os.environ, VSCODE_PID="1", TERM_PROGRAM="", PLANCIA_NO_PROC="1"); en
 subprocess.run([sys.executable, str(Q / "factory.py"), "init", "--no-metodo", "--scrivi"], cwd=d, env=env, capture_output=True)
 def hook(ev, **k):
     k.setdefault("sessionId", "vs-1"); k["hookEventName"] = ev; k["cwd"] = str(d)
-    return subprocess.run([sys.executable, str(Q / "factory.py"), "hook", ev], cwd=d, env=env, input=json.dumps(k), capture_output=True, text=True)
+    return subprocess.run([sys.executable, str(Q / "factory.py"), "hook", ev], cwd=d, env=env, input=json.dumps(k), capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 hook("UserPromptSubmit", prompt="Without modifying any file: plan first with two independent branches")
 subprocess.run([sys.executable, str(Q / "factory.py"), "piano", "nuovo", "T", "A: be", "B: fe <-", "C: sum <- A,B"], cwd=d, env=env, capture_output=True)
@@ -68,9 +68,9 @@ v2 = QQ.valuta([{"id": "A", "testo": "Baseline: `mvn test` in api => counts", "d
                {"id": "C", "testo": "Update callers of Foo.bar found with grep", "dipende_da": ["B"]}, {"id": "D", "testo": "Run `mvn test` => same counts as A", "dipende_da": ["C"]}, {"id": "E", "testo": "Summary", "dipende_da": ["D"]}], "", d)
 check(v2[0] >= 9, "piano preciso: voto alto %s" % (v2,))
 F = [sys.executable, str(Q_ := QQ.__file__).replace("fcore/qualita.py", "factory.py").replace("fcore\\qualita.py", "factory.py")]
-x1 = subprocess.run(F + ["piano", "nuovo", "--new", "P1", "A: Baseline `mvn test`", "B: Edit Foo.java"], cwd=d, env=env, capture_output=True, text=True)
+x1 = subprocess.run(F + ["piano", "nuovo", "--new", "P1", "A: Baseline `mvn test`", "B: Edit Foo.java"], cwd=d, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace")
 subprocess.run(F + ["passo", "A"], cwd=d, env=env, capture_output=True)
-x2 = subprocess.run(F + ["piano", "nuovo", "P2", "A: x"], cwd=d, env=env, capture_output=True, text=True)
+x2 = subprocess.run(F + ["piano", "nuovo", "P2", "A: x"], cwd=d, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace")
 check(x2.returncode == 3 and "SUB-AGENT" in x2.stdout, "piano aperto: un secondo piano senza --new e rifiutato %s" % x2.stdout[:200])
 
 # prova 9: modifica vera su un ramo git, con baseline e verifica
@@ -86,7 +86,7 @@ T("mcp_plancia_plancia_passo", {"id": "E", "stato": "fatto", "nota": "ok"})
 for pid in "ABCDE": subprocess.run(F + ["passo", pid, "fatto", "ok"], cwd=d, env=env, capture_output=True)   # quello che fa davvero lo strumento MCP
 v9 = prove.valuta(9)
 check(v9["esito"] == "PASS", "prova 9: ramo, baseline, modifica, verifica, tutto nel piano %s" % [c["dettaglio"] for c in v9["controlli"] if not c["ok"]])
-x = subprocess.run(F + ["archivia"], cwd=d, env=env, capture_output=True, text=True)
+x = subprocess.run(F + ["archivia"], cwd=d, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace")
 check(x.returncode == 0 and not (d / ".factory" / "prove.jsonl").exists() and not RQ.tutte(d, 10), "archivia: storico messo da parte, pannello riparte vuoto %s" % x.stdout[:120])
 
 # modalita plugin: progetto mai preparato, nessun file del progetto toccato, guardie e regola attive
@@ -95,12 +95,12 @@ subprocess.run(["git", "init", "-q"], cwd=pp)
 hp = Path(tempfile.mkdtemp())
 envp = dict(os.environ, HOME=str(hp), USERPROFILE=str(hp), PLANCIA_HOME=str(hp / ".plancia"), PLANCIA_NO_PROC="1", PLANCIA_NO_PANNELLO="1"); envp.pop("FACTORY_ROOT", None)
 def hp_(ev, **k):
-    k["cwd"] = str(pp); return subprocess.run([sys.executable, str(Path(__file__).resolve().parent.parent / "factory.py"), "hook", ev, "--plugin"], cwd=str(pp), env=envp, input=json.dumps(k), capture_output=True, text=True)
+    k["cwd"] = str(pp); return subprocess.run([sys.executable, str(Path(__file__).resolve().parent.parent / "factory.py"), "hook", ev, "--plugin"], cwd=str(pp), env=envp, input=json.dumps(k), capture_output=True, text=True, encoding="utf-8", errors="replace")
 x = hp_("SessionStart", hook_event_name="SessionStart", session_id="p1")
 check((pp / ".factory" / "policy.json").exists() and "additionalContext" in x.stdout and ".factory/" in (pp / ".git" / "info" / "exclude").read_text(), "plugin: progetto preparato da solo, regola data all'agente, .factory esclusa da git %s" % x.stdout[:100])
-st = subprocess.run(["git", "status", "--porcelain"], cwd=pp, capture_output=True, text=True).stdout
+st = subprocess.run(["git", "status", "--porcelain"], cwd=pp, capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
 check(st.strip() == "?? pom.xml", "plugin: nessun file del progetto toccato (%r)" % st)
 check((hp / ".plancia" / "hook.py").exists(), "plugin: avvio stabile per gli hook di Copilot/VS Code in ~/.plancia")
-x = subprocess.run([sys.executable, str(hp / ".plancia" / "hook.py"), "PreToolUse"], cwd=str(pp), env=envp, input=json.dumps({"toolName": "edit", "toolArgs": json.dumps({"path": str(pp / ".env")}), "sessionId": "c1", "cwd": str(pp)}), capture_output=True, text=True)
+x = subprocess.run([sys.executable, str(hp / ".plancia" / "hook.py"), "PreToolUse"], cwd=str(pp), env=envp, input=json.dumps({"toolName": "edit", "toolArgs": json.dumps({"path": str(pp / ".env")}), "sessionId": "c1", "cwd": str(pp)}), capture_output=True, text=True, encoding="utf-8", errors="replace")
 check('"deny"' in x.stdout and ".env" in x.stdout, "plugin (Copilot): .env bloccato passando dall'avvio stabile %s" % x.stdout[:120])
 print("%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

@@ -8,7 +8,7 @@ def v(nome, cond, det=""):
     if cond: ok += 1; print("  ok  " + nome)
     else: ko += 1; print("  KO  %s %s" % (nome, str(det)[:300]))
 d = Path(tempfile.mkdtemp()); env = {k: x for k, x in os.environ.items() if k not in ("FACTORY_ROOT", "FACTORY_PIANO")}; env["PLANCIA_HOME"] = str(d / "_casa")
-def run(*a, stdin=None): return subprocess.run([sys.executable, F, *a], capture_output=True, text=True, cwd=d, env=env, input=stdin)
+def run(*a, stdin=None): return subprocess.run([sys.executable, F, *a], capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=d, env=env, input=stdin)
 
 x = run("init", "--modo", "governata", "--tutto", "--scrivi"); v("init --tutto: policy, MCP VS Code e Claude, hook", (d / ".factory/policy.json").exists() and "plancia" in json.loads((d / ".vscode/mcp.json").read_text())["servers"] and "plancia" in json.loads((d / ".mcp.json").read_text())["mcpServers"], x.stdout + x.stderr)
 run("init", "--modo", "governata", "--tutto", "--scrivi"); h = json.loads((d / ".claude/settings.json").read_text())["hooks"]
@@ -76,10 +76,10 @@ x = run("task", "eseguito", "AN1"); v("analisi: chiusura senza conferma", x.retu
 x = hook_claude("Write", {"file_path": str(d / "src/main.py"), "content": "x"}); v("dopo la chiusura dell'analisi: scrittura di nuovo ammessa", not x.stdout, x.stdout)
 x = run("task", "apri", "MOD1", "modifica"); x = run("task", "avvia", "MOD1"); v("task normale: avvia senza conferma ancora rifiutato", x.returncode == 2)
 
-x = subprocess.run([sys.executable, F, "mcp"], input=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}) + "\n", capture_output=True, text=True, cwd=d, env=dict(env, PLANCIA_MCP="piano"))
+x = subprocess.run([sys.executable, F, "mcp"], input=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}) + "\n", capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=d, env=dict(env, PLANCIA_MCP="piano"))
 v("mcp PLANCIA_MCP=piano: solo i 3 strumenti del piano", [t_["name"] for t_ in json.loads(x.stdout)["result"]["tools"]] == ["plancia_piano_nuovo", "plancia_passo", "plancia_piano_aggiungi"], x.stdout[:200])
 m2 = [{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "plancia_piano_nuovo", "arguments": {"nuovo": True, "titolo": "Endpoint", "passi": ["A: leggere", "B: modificare <- A"]}}},
       {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "plancia_passo", "arguments": {"id": "A", "stato": "fatto", "nota": "letto"}}}]
-x = subprocess.run([sys.executable, F, "mcp"], input="\n".join(json.dumps(m) for m in m2) + "\n", capture_output=True, text=True, cwd=d, env=dict(env, PLANCIA_MCP="piano"))
+x = subprocess.run([sys.executable, F, "mcp"], input="\n".join(json.dumps(m) for m in m2) + "\n", capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=d, env=dict(env, PLANCIA_MCP="piano"))
 v("mcp piano_nuovo + passo: piano scritto e passo A fatto", "2 steps" in x.stdout and "A: FATTO" in x.stdout, x.stdout[:300])
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

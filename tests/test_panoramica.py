@@ -36,14 +36,14 @@ cp = lav / "zeta-copilot"; cp.mkdir(parents=True); s = casa / ".copilot" / "sess
     {"type": "assistant.message", "data": {"content": "Ecco il riepilogo del progetto."}, "timestamp": oggi}, {"type": "assistant.turn_end", "data": {}, "timestamp": oggi},
     {"type": "session.usage_record", "data": {"usage": {"model": "gpt-x", "inputTokens": 4000000, "outputTokens": 10}}, "timestamp": oggi}]) + "\n")
 
-x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=env, cwd=str(casa))
+x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(casa))
 try: d = json.loads(x.stdout); by = {p["nome"]: p for p in d["progetti"]}
 except Exception as e: by = {}; v("progetti --json leggibile", False, x.stdout[:300] + x.stderr[:300])
 v("trovati gli 8 progetti senza configurare nulla", len(by) == 8, list(by))
 v("loop: stesso comando 3 volte -> in loop, con il comando nei punti di attenzione", by.get("iota-loop", {}).get("stato") == "loop" and any("pytest tests/test_np.py" in a["testo"] for a in by["iota-loop"]["attenzione"]), by.get("iota-loop"))
 se = (by.get("eta-rami", {}).get("sessioni") or [{}])[0]
 v("rami: 2 sotto-agenti al lavoro con la loro descrizione", se.get("sotto_agenti") == ["Ramo B: onp", "Ramo C: isp"] and se.get("stato") == "lavora", se)
-x = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, env=env, cwd=str(lav / "eta-rami")); pp = json.loads(x.stdout)["piani"][0]
+x = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(lav / "eta-rami")); pp = json.loads(x.stdout)["piani"][0]
 st = {s["id"]: s for s in pp["steps"]}
 v("rami: piano live dalla lista dell'agente, con il passo finale che dipende dai 3 rami", pp.get("live") and st["4"]["dipende_da"] == ["1", "2", "3"] and st["1"]["stato"] == "FATTO" and st["2"]["stato"] == "IN_CORSO", pp)
 for nome, atteso in (("alfa-lavora", "lavora"), ("beta-aspetta", "aspetta"), ("gamma-errori", "errore"), ("delta-permesso", "permesso"), ("epsilon-fermo", "fermo"), ("zeta-copilot", "aspetta")):
@@ -55,36 +55,36 @@ v("'aspetta te' non ripetuto nei punti di attenzione", not by.get("beta-aspetta"
 v("errore: testo dell'ultimo errore nei punti di attenzione", any("errore 2: modulo non trovato" in a["testo"] for a in by.get("gamma-errori", {}).get("attenzione", [])), by.get("gamma-errori", {}).get("attenzione"))
 v("permesso: dice quale strumento aspetta", any("Edit" in a["testo"] for a in by.get("delta-permesso", {}).get("attenzione", [])))
 v("consumo alto segnalato (Copilot 4M token oggi)", any(a["tipo"] == "token" for a in by.get("zeta-copilot", {}).get("attenzione", [])))
-x = subprocess.run([sys.executable, F, "progetti"], capture_output=True, text=True, env=env, cwd=str(casa)); v("progetti: vista testo una riga per progetto", x.returncode == 0 and "gamma-errori" in x.stdout and "!" in x.stdout, x.stdout[:300])
+x = subprocess.run([sys.executable, F, "progetti"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(casa)); v("progetti: vista testo una riga per progetto", x.returncode == 0 and "gamma-errori" in x.stdout and "!" in x.stdout, x.stdout[:300])
 
 # modalita leggera: nessuna regola, nessun MCP, guardie attive, progetto registrato
 pl = lav / "beta-aspetta"; (pl / "AGENTS.md").write_text("# mio\n")
-x = subprocess.run([sys.executable, F, "init", "--scrivi"], capture_output=True, text=True, env=env, cwd=str(pl))
+x = subprocess.run([sys.executable, F, "init", "--scrivi"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pl))
 h = json.loads((pl / ".claude/settings.json").read_text())["hooks"]
 v("init di default = leggera", "modalita: leggera" in x.stdout, x.stdout)
 v("leggera: AGENTS.md conserva il suo contenuto + regola minima del piano, nessun MCP", (pl / "AGENTS.md").read_text().startswith("# mio\n") and "piano nuovo" in (pl / "AGENTS.md").read_text() and len((pl / "AGENTS.md").read_text()) < 1200 and not (pl / ".mcp.json").exists(), (pl / "AGENTS.md").read_text())
 v("leggera: guardie, Notification e ora della domanda (senza testo iniettato)", "PreToolUse" in h and "Notification" in h and "UserPromptSubmit" in h, list(h))
 v("leggera: progetto registrato", str(pl.resolve()) in json.loads((casa / ".plancia/progetti.json").read_text()))
-subprocess.run([sys.executable, F, "init", "--modo", "governata", "--tutto", "--scrivi"], capture_output=True, text=True, env=env, cwd=str(pl))
+subprocess.run([sys.executable, F, "init", "--modo", "governata", "--tutto", "--scrivi"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pl))
 v("passaggio a governata: regola + MCP", "plancia:inizio" in (pl / "AGENTS.md").read_text() and (pl / ".mcp.json").exists())
-x = subprocess.run([sys.executable, F, "init", "--modo", "leggera", "--scrivi"], capture_output=True, text=True, env=env, cwd=str(pl))
+x = subprocess.run([sys.executable, F, "init", "--modo", "leggera", "--scrivi"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pl))
 v("ritorno a leggera: regola lunga sostituita dalla minima, MCP tolto, il resto di AGENTS.md resta", (pl / "AGENTS.md").read_text().count("plancia:inizio") == 1 and "## Plancia (piano visibile" not in (pl / "AGENTS.md").read_text() and "# mio" in (pl / "AGENTS.md").read_text() and "plancia" not in json.loads((pl / ".mcp.json").read_text())["mcpServers"], x.stdout)
-x = subprocess.run([sys.executable, F, "hook", "UserPromptSubmit"], input=json.dumps({"hook_event_name": "UserPromptSubmit", "cwd": str(pl)}), capture_output=True, text=True, env=env)
+x = subprocess.run([sys.executable, F, "hook", "UserPromptSubmit"], input=json.dumps({"hook_event_name": "UserPromptSubmit", "cwd": str(pl)}), capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
 v("leggera: l'hook del prompt non aggiunge testo (0 token)", x.returncode == 0 and not x.stdout, x.stdout)
 
 # sessione chiusa: evento SessionEnd -> non conta piu come aperta
 pa = lav / "alfa-lavora"; (pa / ".factory").mkdir(exist_ok=True)
 (pa / ".factory/eventi.jsonl").write_text(json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "tipo": "hook:SessionEnd", "origine": "hook", "sessione": "s1234567"}) + "\n")
-x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=env, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}
+x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}
 v("SessionEnd: sessione tra le chiuse, progetto 'nessun agente aperto'", not pj["alfa-lavora"]["sessioni"] and len(pj["alfa-lavora"]["chiuse"]) == 1 and pj["alfa-lavora"]["stato_txt"] == "nessun agente aperto", pj["alfa-lavora"])
 # processi: senza un processo claude vivo nella cartella la sessione e chiusa; con un processo e aperta
 if os.name != "nt":                                     # i processi si leggono da /proc: solo Linux
     e2 = dict(env); e2.pop("PLANCIA_NO_PROC")
-    x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=e2, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}
+    x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=e2, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}
     v("processi: nessun claude vivo -> sessioni chiuse", not pj["beta-aspetta"]["sessioni"], pj["beta-aspetta"]["sessioni"])
     fk = lav / "beta-aspetta" / "claude"; fk.write_text("#!/bin/sh\nsleep 20\n"); fk.chmod(0o755)
     pr = subprocess.Popen([str(fk)], cwd=str(lav / "beta-aspetta")); time.sleep(0.5)
-    x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=e2, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}; pr.kill()
+    x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=e2, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}; pr.kill()
     v("processi: un claude vivo -> la sessione piu recente e aperta", len(pj["beta-aspetta"]["sessioni"]) == 1 and pj["beta-aspetta"]["stato"] == "aspetta", pj["beta-aspetta"].get("processi"))
 
 # sotto-agenti in background (come Claude Code reale senza TaskCreate): rami dai lanci, ritorni uno per volta, poi sintesi
@@ -94,8 +94,8 @@ base = [P("riassumi i tre moduli in parallelo"), AG("1", "Riassumi src/clarify")
         R("ag1"), R("ag2"), R("ag3"), A("Ho avviato i tre sotto-agenti, aspetto i risultati."), HB("Riassumi src/isp")]
 pt = claude("theta-sub", base, 5)
 def stato_theta():
-    x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=env, cwd=str(casa)); s = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}["theta-sub"]["sessioni"][0]
-    y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, env=env, cwd=str(pt)); pp = json.loads(y.stdout)["piani"][0]
+    x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(casa)); s = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}["theta-sub"]["sessioni"][0]
+    y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pt)); pp = json.loads(y.stdout)["piani"][0]
     return s, {q["id"]: q["stato"] for q in pp["steps"]}, pp
 s, st, pp = stato_theta()
 v("sotto-agenti bg: la domanda e la tua, non il messaggio di ritorno", s["domanda"] == "riassumi i tre moduli in parallelo", s["domanda"])
@@ -110,20 +110,20 @@ v("sotto-agenti bg: il piano e quello dell'ultima richiesta e il finale dipende 
 
 # metodo e contesto
 pm = lav / "kappa-nuovo"; (pm / "src" / "app").mkdir(parents=True); (pm / "src/app/main.py").write_text("print(1)\n"); (pm / "tests").mkdir(); (pm / "tests/test_a.py").write_text("def test_a(): pass\n"); (pm / "requirements.txt").write_text("requests\n")
-x = subprocess.run([sys.executable, F, "init", "--scrivi"], capture_output=True, text=True, env=env, cwd=str(pm))
+x = subprocess.run([sys.executable, F, "init", "--scrivi"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pm))
 cm = (pm / ".factory/CONTESTO.md").read_text() if (pm / ".factory/CONTESTO.md").exists() else ""
 v("init: mappa del progetto scritta senza LLM", "python -m pytest -q tests" in cm and "pip install -r requirements.txt" in cm and "src/app" in cm, cm[:400])
 sk = pm / ".claude/skills/plancia-metodo/SKILL.md"
 v("init: skill plancia-metodo installata nel progetto", sk.exists() and "name: plancia-metodo" in sk.read_text(), x.stdout)
-x = subprocess.run([sys.executable, F, "metodo", "--globale", "--scrivi"], capture_output=True, text=True, env=env, cwd=str(pm))
+x = subprocess.run([sys.executable, F, "metodo", "--globale", "--scrivi"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pm))
 v("metodo --globale: per Claude Code e Copilot", (casa / ".claude/skills/plancia-metodo/SKILL.md").exists() and (casa / ".copilot/skills/plancia-metodo/SKILL.md").exists(), x.stdout)
-x = subprocess.run([sys.executable, F, "salute"], capture_output=True, text=True, env=env, cwd=str(pm)); v("salute: mappa del progetto presente", "Mappa del progetto" in x.stdout and "aggiornata oggi" in x.stdout, x.stdout)
+x = subprocess.run([sys.executable, F, "salute"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pm)); v("salute: mappa del progetto presente", "Mappa del progetto" in x.stdout and "aggiornata oggi" in x.stdout, x.stdout)
 
 # richieste, nota "risposta diretta", riprendere
 with open(f, "a") as h:
     for r in (P("come si lanciano i test?"), T("Bash", "z1", {"command": "ls tests"}), R("z1"), {"type": "assistant", "message": {"id": "w1", "model": "claude-x", "content": [{"type": "tool_use", "id": "w1", "name": "Edit", "input": {"file_path": str(pt / "src/a.py")}}]}}, R("w1"), A("cd tests && pytest")):
         h.write(json.dumps(dict(r, cwd=str(pt), timestamp=oggi)) + "\n")
-y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, env=env, cwd=str(pt)); S_ = json.loads(y.stdout)
+y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pt)); S_ = json.loads(y.stdout)
 rq = S_["richieste"]
 v("richieste: la piu recente per prima, con comando e file modificato", rq[0]["domanda"] == "come si lanciano i test?" and rq[0]["comandi"] == ["ls tests"] and rq[0]["file"] == ["src/a.py"], rq[0])
 v("richieste: quella con i sotto-agenti ne conta 3", rq[1]["sotto_agenti"] == 3 and rq[1]["token_lavoro"] > 0, rq[1])
@@ -131,7 +131,7 @@ v("piano: l'ultima richiesta era diretta -> nota, e il piano dei rami diventa st
 v("riprendere: ultima domanda e file modificati", "come si lanciano i test?" in S_["riprendere"] and "src/a.py" in S_["riprendere"], S_["riprendere"])
 v("salute: spiega perche e come per ogni problema", all(c["perche"] and c["come"] for c in S_["salute"]["controlli"] if c["stato"] in ("ATTENZIONE", "KO")), S_["salute"])
 (pt / ".factory").mkdir(exist_ok=True)
-y = subprocess.run([sys.executable, F, "handoff"], capture_output=True, text=True, env=env, cwd=str(pt))
+y = subprocess.run([sys.executable, F, "handoff"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pt))
 v("handoff in leggera: scrive RIPRENDERE.md dalle sessioni", (pt / ".factory/RIPRENDERE.md").exists() and "src/a.py" in (pt / ".factory/RIPRENDERE.md").read_text(), y.stdout + y.stderr)
 
 v("attivita: comando e modifica della richiesta, entrambi fatti", [(a["tipo"], a["cosa"], a["esito"]) for a in rq[0]["attivita"]] == [("comando", "ls tests", "ok"), ("modifica", "src/a.py", "ok")] and rq[0]["finita"], rq[0]["attivita"])
@@ -139,9 +139,9 @@ v("attivita: comando e modifica della richiesta, entrambi fatti", [(a["tipo"], a
 with open(f, "a") as h:
     for r in (P("migliora il modulo onp"), {"type": "assistant", "message": {"id": "q1", "model": "claude-x", "content": [{"type": "tool_use", "id": "q1", "name": "AskUserQuestion", "input": {"questions": [{"question": "Quale copia del modulo onp devo modificare?"}]}}]}}):
         h.write(json.dumps(dict(r, cwd=str(pt), timestamp=oggi)) + "\n")
-x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=env, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}["theta-sub"]
+x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}["theta-sub"]
 v("domanda dell'agente: aspetta te, con il testo della domanda", pj["stato"] == "aspetta" and any("Quale copia del modulo onp" in a["testo"] for a in pj["attenzione"]), (pj["stato"], pj["attenzione"]))
-y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, env=env, cwd=str(pt)); S_ = json.loads(y.stdout)
+y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pt)); S_ = json.loads(y.stdout)
 v("richiesta in corso: la nota lo dice (non 'risposta diretta')", "in corso" in (S_["nota_piano"] or "") and not S_["richieste"][0]["finita"] and S_["richieste"][0]["attivita"][0]["tipo"] == "domanda", S_["nota_piano"])
 
 # piano scritto dall'agente con `plancia piano nuovo` + passi + modifiche fatte con script: il pannello disegna quel piano, con le azioni per passo
@@ -153,43 +153,43 @@ righe = [P("migliora il modulo onp"), B("b1", 'plancia piano nuovo "Migliora onp
          B("b6", "plancia passo C"), R("b6"), B("t1", "python -m pytest tests/test_inet.py"), R("t1", True, "ModuleNotFoundError: pandas"), B("b7", 'plancia passo C errore "pandas non installato"'), R("b7")]
 claude("lambda-piano", righe, 3)
 for c in ('piano nuovo "Migliora onp" "A: leggere onp" "B: pulizia log_parser <- A" "C: test inet_utils <- A" "D: riepilogo <- B,C"', "passo A fatto", "passo B fatto", 'passo C errore "pandas non installato"'):
-    subprocess.run([sys.executable, F] + __import__("shlex").split(c), capture_output=True, text=True, env=env, cwd=str(pz))
-y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, env=env, cwd=str(pz)); S_ = json.loads(y.stdout); p0 = S_["piani"][0]; st = {s["id"]: s for s in p0["steps"]}
+    subprocess.run([sys.executable, F] + __import__("shlex").split(c), capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pz))
+y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pz)); S_ = json.loads(y.stdout); p0 = S_["piani"][0]; st = {s["id"]: s for s in p0["steps"]}
 v("piano dell'agente: primo, con il titolo dell'ultima richiesta, nessuna nota", p0["task"] == "Ultima richiesta · Migliora onp" and p0.get("scritto") and not S_["nota_piano"], (p0["task"], S_["nota_piano"]))
 v("piano dell'agente: rami B e C paralleli dopo A, D li unisce", st["B"]["dipende_da"] == ["A"] and st["C"]["dipende_da"] == ["A"] and st["D"]["dipende_da"] == ["B", "C"])
 v("piano dell'agente: stati e motivo dell'errore", (st["A"]["stato"], st["B"]["stato"], st["C"]["stato"], st["C"].get("blocker_reason")) == ("FATTO", "FATTO", "BLOCCATO", "pandas non installato"), st["C"])
 v("azioni attribuite ai passi (lettura in A, modifica via script in B, test fallito in C)", [a["tipo"] for a in st["A"]["azioni"]] == ["leggi"] and st["B"]["azioni"][0]["tipo"] == "modifica" and "log_parser.py" in st["B"]["azioni"][0]["cosa"] and st["C"]["azioni"][0]["esito"] == "errore", {k: s["azioni"] for k, s in st.items()})
 v("i comandi plancia non sporcano l'elenco delle azioni", not any("plancia" in (a["cosa"] or "") for a in S_["richieste"][0]["attivita"]), S_["richieste"][0]["attivita"])
 v("modifica fatta con uno script contata tra i file modificati", "log_parser.py" in S_["richieste"][0]["file"], S_["richieste"][0]["file"])
-x = subprocess.run([sys.executable, F, "policy", "verifica", "--comando", "python3 -c \"open('.env','w').write('x')\""], capture_output=True, text=True, env=env, cwd=str(pz))
+x = subprocess.run([sys.executable, F, "policy", "verifica", "--comando", "python3 -c \"open('.env','w').write('x')\""], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pz))
 v("guardia: scrittura su .env nascosta in uno script Python negata", x.returncode == 3, x.stdout)
 
 # piano obbligatorio: niente modifiche ai file finche non c'e il piano della richiesta
-pq = lav / "mu-obbligo"; pq.mkdir(); subprocess.run([sys.executable, F, "init", "--scrivi"], capture_output=True, text=True, env=env, cwd=str(pq))
-def hk(ev, dati): return subprocess.run([sys.executable, F, "hook", ev], input=json.dumps(dict(dati, cwd=str(pq))), capture_output=True, text=True, env=env)
+pq = lav / "mu-obbligo"; pq.mkdir(); subprocess.run([sys.executable, F, "init", "--scrivi"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pq))
+def hk(ev, dati): return subprocess.run([sys.executable, F, "hook", ev], input=json.dumps(dict(dati, cwd=str(pq))), capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
 hk("UserPromptSubmit", {"hook_event_name": "UserPromptSubmit", "prompt": "migliora onp"}); time.sleep(1.1)
 x = hk("PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": str(pq / "onp/a.py")}})
 v("piano obbligatorio: Edit senza piano negato, il messaggio spiega il comando", '"deny"' in x.stdout and "piano nuovo" in x.stdout and "plancia_piano_nuovo" in x.stdout, x.stdout)
 x = hk("PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {"file_path": str(pq / "onp/a.py")}}); v("piano obbligatorio: leggere e sempre ammesso", not x.stdout, x.stdout)
 x = hk("PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "sed -i 's/a/b/' onp/a.py"}}); v("piano obbligatorio: anche sed -i senza piano negato", '"deny"' in x.stdout, x.stdout)
 x = hk("preToolUse", {"toolName": "edit", "toolArgs": json.dumps({"path": "onp/a.py"})}); v("piano obbligatorio: vale anche per Copilot", '"deny"' in x.stdout, x.stdout)
-subprocess.run([sys.executable, F, "piano", "nuovo", "Migliora", "A: leggere", "B: modificare"], capture_output=True, text=True, env=env, cwd=str(pq))
+subprocess.run([sys.executable, F, "piano", "nuovo", "Migliora", "A: leggere", "B: modificare"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pq))
 x = hk("PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": str(pq / "onp/a.py")}}); v("piano obbligatorio: dopo il piano la modifica passa", not x.stdout, x.stdout)
 time.sleep(1.1); hk("UserPromptSubmit", {"hook_event_name": "UserPromptSubmit", "prompt": "altra richiesta"}); time.sleep(1.1)
 x = hk("PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": str(pq / "b.py")}}); v("piano obbligatorio: nuova richiesta = serve un piano nuovo", '"deny"' in x.stdout, x.stdout)
-subprocess.run([sys.executable, F, "init", "--piano", "consigliato", "--scrivi"], capture_output=True, text=True, env=env, cwd=str(pq))
+subprocess.run([sys.executable, F, "init", "--piano", "consigliato", "--scrivi"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pq))
 x = hk("PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": str(pq / "b.py")}}); v("--piano consigliato: nessun blocco", not x.stdout, x.stdout)
 # ambiente: pandas mancante visibile subito
 claude("nu-ambiente", [P("lancia i test"), T("Bash", "a1", {"command": "pytest"}), R("a1", False, "SKIPPED [1] tests/test_inet.py: could not import 'pandas': No module named 'pandas'"), A("test saltati")], 20)
-x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=env, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}["nu-ambiente"]
+x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}["nu-ambiente"]
 v("ambiente: 'manca il modulo Python pandas' nei punti di attenzione con il comando", any("pandas" in a["testo"] and "pip install pandas" in a["testo"] for a in pj["attenzione"]), pj["attenzione"])
 
 # nota del piano: solo letture -> niente obbligo; modifiche senza evento della domanda -> agente aperto prima di init
 pr2 = lav / "xi-note"; (pr2 / ".factory").mkdir(parents=True)
 claude("xi-note", [P("analizza onp")] + [x for i in range(4) for x in (T("Read", "rd%d" % i, {"file_path": str(pr2 / ("f%d.py" % i))}), R("rd%d" % i))] + [A("fatto")], 5)
-y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, env=env, cwd=str(pr2)); v("nota: solo letture -> il piano non era obbligatorio", "solo letto" in (json.loads(y.stdout)["nota_piano"] or ""), json.loads(y.stdout)["nota_piano"])
+y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pr2)); v("nota: solo letture -> il piano non era obbligatorio", "solo letto" in (json.loads(y.stdout)["nota_piano"] or ""), json.loads(y.stdout)["nota_piano"])
 claude("xi-note", [P("modifica onp")] + [x for i in range(4) for x in (T("Edit", "ed%d" % i, {"file_path": str(pr2 / ("f%d.py" % i))}), R("ed%d" % i))] + [A("fatto")], 5)
-y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, env=env, cwd=str(pr2)); v("nota: modifiche senza guardia attiva -> riapri l'agente", "aperto prima di `plancia init`" in (json.loads(y.stdout)["nota_piano"] or ""), json.loads(y.stdout)["nota_piano"])
+y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pr2)); v("nota: modifiche senza guardia attiva -> riapri l'agente", "aperto prima di `plancia init`" in (json.loads(y.stdout)["nota_piano"] or ""), json.loads(y.stdout)["nota_piano"])
 
 # piano aggiungi, attribuzione retroattiva, fuori dal piano
 po = lav / "omicron"; (po / ".factory").mkdir(parents=True)
@@ -199,8 +199,8 @@ righe = [P("unisci i duplicati"), B("c1", 'plancia piano nuovo "Duplicati" "A: c
          T("Edit", "o3", {"file_path": str(po / "y.py")}), R("o3"), A("fatto")]
 claude("omicron", righe, 3)
 for c in ('piano nuovo "Duplicati" "A: confronta funzioni" "B: rimuovi duplicati da x.py"', 'passo A fatto "4 identiche"', 'piano aggiungi "C: verifica import <- B"', 'passo B fatto "da 703 a 677 righe"'):
-    x = subprocess.run([sys.executable, F] + __import__("shlex").split(c), capture_output=True, text=True, env=env, cwd=str(po))
-y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, env=env, cwd=str(po)); p0 = json.loads(y.stdout)["piani"][0]; st = {s["id"]: s for s in p0["steps"]}
+    x = subprocess.run([sys.executable, F] + __import__("shlex").split(c), capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(po))
+y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(po)); p0 = json.loads(y.stdout)["piani"][0]; st = {s["id"]: s for s in p0["steps"]}
 v("piano aggiungi: C aggiunto dopo B senza toccare A e B", st.get("C", {}).get("dipende_da") == ["B"] and st["A"]["stato"] == "FATTO", list(st))
 v("attribuzione retroattiva: la lettura fatta senza 'passo A' finisce in A", [a["tipo"] for a in st["A"]["azioni"]] == ["leggi"], st["A"]["azioni"])
 v("risultato del passo salvato (dettaglio)", st["B"].get("dettaglio") == "da 703 a 677 righe", st["B"])
@@ -213,47 +213,47 @@ righe = [P("unisci le coppie"), B("k1", 'plancia piano nuovo "Coppie" "A: confro
          B("k5", "cd src; plancia passo C; python3 -m pytest -q"), R("k5", True, "E   ModuleNotFoundError: No module named 'tracking'")]
 claude("pi-composti", righe, 3)
 for c in ('piano nuovo "Coppie" "A: confronta" "B: unisci <- A" "C: test <- B"', "passo A", "passo B", "passo C"):
-    x = subprocess.run([sys.executable, F] + __import__("shlex").split(c), capture_output=True, text=True, env=env, cwd=str(pp_))
-v("passo B partito: A chiuso in automatico", "chiusi in automatico: A" in subprocess.run([sys.executable, F, "piano", "mostra"], capture_output=True, text=True, env=env, cwd=str(pp_)).stdout or True)
-y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, env=env, cwd=str(pp_)); st = {s["id"]: s for s in json.loads(y.stdout)["piani"][0]["steps"]}
+    x = subprocess.run([sys.executable, F] + __import__("shlex").split(c), capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pp_))
+v("passo B partito: A chiuso in automatico", "chiusi in automatico: A" in subprocess.run([sys.executable, F, "piano", "mostra"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pp_)).stdout or True)
+y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pp_)); st = {s["id"]: s for s in json.loads(y.stdout)["piani"][0]["steps"]}
 v("chiusura automatica: A e B fatti perche C e partito", st["A"]["stato"] == "FATTO" and st["B"]["stato"] == "FATTO" and st["C"]["stato"] == "IN_CORSO", {k: s["stato"] for k, s in st.items()})
 v("diff con uscita 1: non conta come errore, con spiegazione", st["A"]["azioni"][0]["esito"] == "ok" and "diff" in st["A"]["azioni"][0].get("nota", ""), st["A"]["azioni"])
 v("comandi composti: la sed va in B, il pytest in C", st["B"]["azioni"][0]["tipo"] == "modifica" and st["C"]["azioni"][0]["tipo"] == "comando", (st["B"]["azioni"], st["C"]["azioni"]))
 v("errore vero: messaggio visibile nel passo", "No module named 'tracking'" in st["C"]["azioni"][0].get("errore", ""), st["C"]["azioni"])
 
 # chat di VS Code: nessuna trascrizione, tutto dagli hook (domanda, azioni, piano, fine)
-pv = lav / "rho-vscode"; pv.mkdir(); subprocess.run([sys.executable, F, "init", "--scrivi"], capture_output=True, text=True, env=env, cwd=str(pv))
+pv = lav / "rho-vscode"; pv.mkdir(); subprocess.run([sys.executable, F, "init", "--scrivi"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pv))
 ev2 = dict(env); ev2.pop("CLAUDE_PROJECT_DIR"); ev2["VSCODE_PID"] = "123"
-def vs(evn, dati): return subprocess.run([sys.executable, F, "hook", evn], input=json.dumps(dict(dati, hook_event_name=evn, cwd=str(pv), session_id="vs-abc123")), capture_output=True, text=True, env=ev2)
+def vs(evn, dati): return subprocess.run([sys.executable, F, "hook", evn], input=json.dumps(dict(dati, hook_event_name=evn, cwd=str(pv), session_id="vs-abc123")), capture_output=True, text=True, encoding="utf-8", errors="replace", env=ev2)
 vs("UserPromptSubmit", {"prompt": "aggiungi un endpoint per i ruoli"}); time.sleep(1.1)
 x = vs("PreToolUse", {"tool_name": "replace_string_in_file", "tool_input": {"filePath": str(pv / "src/Ruoli.java")}}); v("VS Code: modifica senza piano negata", '"deny"' in x.stdout, x.stdout)
-subprocess.run([sys.executable, F, "piano", "nuovo", "Endpoint ruoli", "A: leggere controller", "B: aggiungere endpoint"], capture_output=True, text=True, env=ev2, cwd=str(pv))
+subprocess.run([sys.executable, F, "piano", "nuovo", "Endpoint ruoli", "A: leggere controller", "B: aggiungere endpoint"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=ev2, cwd=str(pv))
 vs("PostToolUse", {"tool_name": "run_in_terminal", "tool_input": {"command": 'plancia passo A'}, "tool_response": {}})
 vs("PostToolUse", {"tool_name": "read_file", "tool_input": {"filePath": str(pv / "src/Controller.java")}, "tool_response": {}})
 vs("PostToolUse", {"tool_name": "run_in_terminal", "tool_input": {"command": 'plancia passo B'}, "tool_response": {}})
 vs("PreToolUse", {"tool_name": "replace_string_in_file", "tool_input": {"filePath": str(pv / "src/Ruoli.java")}})
 vs("PostToolUse", {"tool_name": "replace_string_in_file", "tool_input": {"filePath": str(pv / "src/Ruoli.java")}, "tool_response": {}})
 vs("PostToolUse", {"tool_name": "run_in_terminal", "tool_input": {"command": "mvn -q test"}, "tool_response": {"is_error": True}})
-x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=env, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}["rho-vscode"]
+x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}["rho-vscode"]
 v("VS Code: sessione visibile in Progetti con la domanda, sta lavorando", pj["sessioni"] and pj["sessioni"][0]["fonte"] == "vscode" and pj["sessioni"][0]["domanda"] == "aggiungi un endpoint per i ruoli" and pj["stato"] == "lavora", pj["sessioni"])
 vs("Stop", {})
-x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, env=env, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}["rho-vscode"]
+x = subprocess.run([sys.executable, F, "progetti", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(casa)); pj = {p["nome"]: p for p in json.loads(x.stdout)["progetti"]}["rho-vscode"]
 v("VS Code: dopo Stop -> aspetta te", pj["stato"] == "aspetta", pj["stato"])
-y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, env=env, cwd=str(pv)); S_ = json.loads(y.stdout); st = {s["id"]: s for s in S_["piani"][0]["steps"]}
+y = subprocess.run([sys.executable, F, "pannello", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pv)); S_ = json.loads(y.stdout); st = {s["id"]: s for s in S_["piani"][0]["steps"]}
 v("VS Code: richiesta ricostruita dagli hook (file modificato, comando fallito)", S_["richieste"][0]["fonte"] == "vscode" and "src/Ruoli.java" in S_["richieste"][0]["file"] and S_["richieste"][0]["errori"] == 1, S_["richieste"][0])
 v("VS Code: azioni attribuite ai passi del piano (lettura in A, modifica e mvn in B)", [a["tipo"] for a in st["A"]["azioni"]] == ["leggi"] and [a["tipo"] for a in st["B"]["azioni"]] == ["modifica", "comando"], {k: s.get("azioni") for k, s in st.items()})
 
 # installatore con doppio clic (non interattivo nei test)
 pi_ = lav / "sigma-installa"; (pi_ / "src").mkdir(parents=True); (pi_ / "src/a.py").write_text("x=1\n")
-x = subprocess.run([sys.executable, str(ROOT / "installa.py"), str(pi_)], capture_output=True, text=True, env=dict(env, PLANCIA_NON_INTERATTIVO="1"))
+x = subprocess.run([sys.executable, str(ROOT / "installa.py"), str(pi_)], capture_output=True, text=True, encoding="utf-8", errors="replace", env=dict(env, PLANCIA_NON_INTERATTIVO="1"))
 v("installatore: init, mappa, skill e .gitignore degli eventi", x.returncode == 0 and (pi_ / ".factory/CONTESTO.md").exists() and (pi_ / ".claude/settings.json").exists() and "eventi.jsonl" in (pi_ / ".factory/.gitignore").read_text(), x.stdout[-400:] + x.stderr[-400:])
-x = subprocess.run([sys.executable, str(ROOT / "installa.py"), str(ROOT)], capture_output=True, text=True, env=dict(env, PLANCIA_NON_INTERATTIVO="1"))
+x = subprocess.run([sys.executable, str(ROOT / "installa.py"), str(ROOT)], capture_output=True, text=True, encoding="utf-8", errors="replace", env=dict(env, PLANCIA_NON_INTERATTIVO="1"))
 v("installatore: rifiuta la cartella della Plancia stessa", x.returncode == 2 and "cartella della Plancia" in x.stdout, x.stdout)
 
 # prove e diagnosi
-x = subprocess.run([sys.executable, F, "prove", "verifica", "4"], capture_output=True, text=True, env=env, cwd=str(pz))
+x = subprocess.run([sys.executable, F, "prove", "verifica", "4"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pz))
 v("prove verifica: controlli con motivo (rami B e C in parallelo, prompt diverso segnalato)", "2 passi possono andare in parallelo" in x.stdout and "modifiche:" in x.stdout and "non e il prompt di questa prova" in x.stdout, x.stdout)
-x = subprocess.run([sys.executable, F, "diagnosi"], capture_output=True, text=True, env=env, cwd=str(pz)); zf = sorted((pz / ".factory").glob("diagnosi-*.zip"))
+x = subprocess.run([sys.executable, F, "diagnosi"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pz)); zf = sorted((pz / ".factory").glob("diagnosi-*.zip"))
 import zipfile as _zf
 nomi = _zf.ZipFile(zf[-1]).namelist() if zf else []
 v("diagnosi: zip con diagnosi, struttura e piani, senza sorgenti", "diagnosi.json" in nomi and "struttura.txt" in nomi and not any(n.endswith((".py", ".java")) for n in nomi), nomi)

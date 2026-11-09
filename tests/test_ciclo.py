@@ -8,7 +8,7 @@ def v(nome, cond, det=""):
     if cond: ok += 1; print("  ok  " + nome)
     else: ko += 1; print("  KO  %s %s" % (nome, det))
 d = Path(tempfile.mkdtemp()); env = {k: x for k, x in os.environ.items() if k not in ("FACTORY_ROOT", "FACTORY_PIANO")}; env["PLANCIA_HOME"] = str(d / "_casa")
-def run(*a, stdin=None): return subprocess.run([sys.executable, F, *a], capture_output=True, text=True, cwd=d, env=env, input=stdin)
+def run(*a, stdin=None): return subprocess.run([sys.executable, F, *a], capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=d, env=env, input=stdin)
 (d / "passi.json").write_text(json.dumps({"task": "T", "steps": [{"id": "A", "testo": "uno"}, {"id": "B", "testo": "due", "dipende_da": ["A"]}]}))
 x = run("init", "--modo", "governata"); v("init senza --scrivi non scrive nulla", x.returncode == 0 and not (d / ".factory").exists() and not (d / "AGENTS.md").exists())
 x = run("init", "--modo", "governata", "--scrivi"); v("init --scrivi: .factory, regola, hook Claude e Copilot", (d / ".factory").is_dir() and "plancia:inizio" in (d / "AGENTS.md").read_text() and (d / ".claude/settings.json").exists() and (d / ".github/hooks/plancia.json").exists())

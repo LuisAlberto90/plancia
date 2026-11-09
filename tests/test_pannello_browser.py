@@ -19,7 +19,7 @@ else:
     (proj / "pom.xml").write_text("<project/>")
     env0 = dict(os.environ, HOME=str(home), USERPROFILE=str(home), PLANCIA_NO_PROC="1")
     subprocess.run([sys.executable, str(Q / "factory.py"), "init", "--scrivi", "--no-metodo"], cwd=proj, env=env0, capture_output=True)
-    subprocess.run([sys.executable, str(Q / "factory.py"), "hook", "UserPromptSubmit"], cwd=proj, env=dict(env0, CLAUDE_PROJECT_DIR=str(proj)), input=json.dumps({"session_id": "s1", "prompt": "BE and FE in parallel", "cwd": str(proj)}), capture_output=True, text=True)
+    subprocess.run([sys.executable, str(Q / "factory.py"), "hook", "UserPromptSubmit"], cwd=proj, env=dict(env0, CLAUDE_PROJECT_DIR=str(proj)), input=json.dumps({"session_id": "s1", "prompt": "BE and FE in parallel", "cwd": str(proj)}), capture_output=True, text=True, encoding="utf-8", errors="replace")
     time.sleep(1.1)
     subprocess.run([sys.executable, str(Q / "factory.py"), "piano", "nuovo", "Demo BE/FE", "A: list tests in api/src/test => count", "B: list specs in web/src => count <-", "C: Summary <- A,B"], cwd=proj, env=env0, capture_output=True)
 s = socket.socket(); s.bind(("127.0.0.1", 0)); porta = s.getsockname()[1]; s.close()

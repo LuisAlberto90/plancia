@@ -46,7 +46,7 @@ if HAS_YAML:
     tmp = Path(tempfile.mkdtemp()); env = {**os.environ, "FACTORY_ROOT": str(tmp / "radice"), "FACTORY_PIANO": str(tmp / "t" / "piano.yaml")}
     (tmp / "t").mkdir()
     (tmp / "t" / "piano.yaml").write_text("task: t\nsteps:\n- {id: P1, testo: uno, dipende_da: [], chi: agente, stato: fatto}\n- {id: P2, testo: due, dipende_da: [P1], chi: agente, stato: problema, dettaglio: boh}\n", encoding="utf-8")
-    cli = lambda *a: subprocess.run([sys.executable, str(ROOT / "fcore" / "piano.py"), *a], capture_output=True, text=True, env=env, cwd=ROOT)
+    cli = lambda *a: subprocess.run([sys.executable, str(ROOT / "fcore" / "piano.py"), *a], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=ROOT)
     x = cli("passo", "P1", "in_corso"); v("riaprire un passo FATTO senza regressione è rifiutato", x.returncode == 2 and "regressione" in x.stdout)
     x = cli("passo", "P1", "in_corso", "--regressione", "il numero non torna"); v("con regressione dimostrata si riapre e resta nello storico", x.returncode == 0 and "regressione" in (tmp / "t" / "piano.yaml").read_text())
     x = cli("migra"); v("migra: anteprima, nessuna scrittura", "anteprima" in x.stdout and "problema" in (tmp / "t" / "piano.yaml").read_text())
