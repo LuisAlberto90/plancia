@@ -52,7 +52,7 @@ REGOLA_MINI = """%s
 ## Plancia
 For any request that is not a pure question, your FIRST action is the plan (before reading files): `%s piano nuovo "<title>" "A: <step>" "B: <step> <- A" ...`.
 Each step = one action on an exact file/module/command from .factory/CONTESTO.md, with a check: "B: <verb> <object> => <check>". 3-5 steps for analysis, 6-12 for a change (baseline tests BEFORE changing, one step per file, callers, docs, verification vs baseline, summary). Independent steps get `<-` alone (parallel branches). If the Plancia says "Improve it now", rewrite once with `piano nuovo --new`. Sub-agents never write plans; the parent marks their steps. Close every step.
-In VS Code chat use the MCP tools plancia_piano_nuovo / plancia_passo / plancia_piano_aggiungi instead of the terminal. Then `plancia passo <id>` when starting, `plancia passo <id> fatto "<result in a few words>"` / `errore "<cause>"`; new work found mid-way: `plancia piano aggiungi "E: ... <- B"`. Details: skill plancia-metodo. Reply in the user's language.
+In VS Code chat use the MCP tools plancia_piano_nuovo / plancia_passo / plancia_piano_aggiungi instead of the terminal. Then `plancia passo <id>` when starting, `plancia passo <id> fatto "<result in a few words>"` / `errore "<cause>"`; new work found mid-way: `plancia piano aggiungi "E: ... <- B"` (also for follow-ups in the same chat). Details: skill plancia-metodo. Reply in the user's language.
 %s
 """
 

@@ -67,7 +67,8 @@ def regola(cmd):
             "tool plancia_piano_nuovo (or `%s piano nuovo \"<title>\" \"A: <verb> <exact file/module/command> => <check>\" \"B: ... <- A\"`). "
             "Use names and build/test commands from .factory/CONTESTO.md. 3-5 steps for analysis, 6-12 for a change: baseline tests before changing, one step per file, "
             "callers, docs, verification vs baseline, summary. Independent steps get `<-` alone (parallel branches). Mark steps with plancia_passo "
-            "(start, then fatto \"<result>\" / errore \"<cause>\" / saltato \"<why>\"). Sub-agents never write plans. Edits are blocked until the plan exists. "
+            "(start, then fatto \"<result>\" / errore \"<cause>\" / saltato \"<why>\"). Follow-up message in the same chat that continues the same work: "
+            "add steps with plancia_piano_aggiungi instead of a new plan; new unrelated work: new plan. Sub-agents never write plans. Edits are blocked until the plan exists. "
             "Protected files (.env, keys, .git) and dangerous commands are blocked: never work around a block." % cmd)
 
 

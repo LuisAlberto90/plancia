@@ -170,6 +170,12 @@ def proposte(rad, sk, ist, mc, tutte=False):
         p.append({"id": "passa-al-plugin", "titolo": "Questo progetto ha ancora la vecchia installazione", "ambito": "solo questo progetto",
                   "perche": "Hook, regola e strumenti scritti dentro il progetto (AGENTS.md, .github/hooks, .claude/settings.json, .vscode/mcp.json) dalla versione classica o dalla vecchia Lavagna. Col plugin non servono piu e possono puntare a programmi che non esistono, cosi la Plancia non vede niente.",
                   "azione": {"tipo": "crea", "testo": "Tolgo dal progetto solo le parti della Plancia/Lavagna: il resto dei file resta com'e."}})
+    try: cfg = json.loads((r / ".factory" / "config.json").read_text(encoding="utf-8"))
+    except Exception: cfg = {}
+    if not cfg.get("approva_sicuri"):
+        p.append({"id": "approva-sicuri", "titolo": "Meno \u201cAllow\u201d in chat: la Plancia approva da sola i comandi sicuri", "ambito": "solo questo progetto",
+                  "perche": "Comandi di sola lettura (ls, git status/diff/log, grep, Get-Content...), controlli di versione e test/build (mvn test, npm test, pytest...) partono senza chiederti il permesso. Solo un comando alla volta: se contiene ; && | > o simili, la chat te lo chiede come sempre. Tutto il resto resta com'e.",
+                  "azione": {"tipo": "crea", "testo": "Attivo l'approvazione automatica dei comandi sicuri per questo progetto (si spegne da qui)."}})
     rif = _rifiutate(rad)
     for x in p: x["rifiutata"] = x["id"] in rif
     return p if tutte else [x for x in p if not x["rifiutata"]]
@@ -203,6 +209,12 @@ def azione_proposta(rad, pid, azione):
         for d in (Path.home() / ".claude" / "skills" / "plancia-metodo", Path.home() / ".copilot" / "skills" / "plancia-metodo"):
             if (d / "SKILL.md").exists(): shutil.rmtree(d, ignore_errors=True)
         return {"ok": True, "messaggio": "Fatto: resta solo il metodo del plugin."}
+    elif azione == "crea" and pid == "approva-sicuri":
+        f2 = rad / ".factory" / "config.json"
+        try: c2 = json.loads(f2.read_text(encoding="utf-8"))
+        except Exception: c2 = {}
+        c2["approva_sicuri"] = True; f2.write_text(json.dumps(c2, indent=1), encoding="utf-8")
+        return {"ok": True, "messaggio": "Fatto: da adesso letture, versioni e test partono senza chiederti il permesso."}
     elif azione == "crea" and pid == "passa-al-plugin":
         import importlib.util
         spec = importlib.util.spec_from_file_location("factory_main", str(Path(__file__).resolve().parent.parent / "factory.py"))

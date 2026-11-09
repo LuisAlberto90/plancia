@@ -171,3 +171,26 @@ def main(a):
 
 
 if __name__ == "__main__": sys.exit(main(sys.argv[1:]))
+
+
+# Comandi che la Plancia puo approvare da sola (se il progetto lo ha scelto): sola lettura, versioni, test e build. Un comando solo, niente concatenazioni.
+SICURI = re.compile(r"""(?ix)^\s*(
+    (ls|dir|pwd|tree|wc|cat|type|head|tail|grep|rg|findstr|which|where)(\s|$)
+  | (get-childitem|get-content|select-string|get-location|test-path|get-command|resolve-path)(\s|$)
+  | git\s+(status|log|diff|show|branch|rev-parse|remote\s+-v|ls-files|blame)(\s|$)
+  | (py|python3?)(\s+-3)?\s+(--version|-V|-m\s+(pytest|py_compile|unittest)(\s|$)) | pytest(\s|$)
+  | (\.[\\/])?(mvnw(\.cmd)?|mvn)(\s+-q)?\s+(-v|--version|test|compile|verify|-DskipTests\s+package|package\s+-DskipTests)(\s|$)
+  | (\.[\\/])?gradlew?(\.bat)?\s+(test|build|--version)(\s|$)
+  | npm\s+(test|run\s+(test|lint|build)|--version|ls)(\s|$) | ng\s+(test|version)(\s|$) | node\s+(--version|-v)(\s|$)
+  | (java|javac)\s+(-version|--version)(\s|$) | dotnet\s+(test|build|--version)(\s|$) | go\s+(test|vet|version)(\s|$) | cargo\s+(test|check)(\s|$)
+)""")
+CONCATENA = re.compile(r"[;&|<>`\n]|\$\(|@\(|\bInvoke-|\biex\b|-exec\b|-delete\b|--output\b|-o\s|>\s*")
+
+
+def approvabile(nome, args):
+    """True se il comando e di sola lettura, una verifica di versione o un test/build, ed e UN comando solo."""
+    if not isinstance(args, dict): return False
+    n = str(nome or "").lower()
+    if n not in ("bash", "shell", "powershell", "run_in_terminal", "runinterminal", "terminal"): return False
+    c = str(args.get("command") or args.get("cmd") or "").strip()
+    return bool(c) and len(c) < 300 and not CONCATENA.search(c) and bool(SICURI.match(c))

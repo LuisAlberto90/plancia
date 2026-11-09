@@ -203,7 +203,8 @@ def nuovo(args):
     if aperto and not nuova:                                              # tipico: un sotto-agente che crea il suo piano e confonde quello del genitore
         print('A plan is already open: "%s" (%d steps open, %d min ago).\n'
               '- If you are a SUB-AGENT: do NOT create a plan and do NOT call plancia; just do your task and report to the parent.\n'
-              '- If this is a NEW user request: repeat with --new as first argument (MCP: "nuovo": true).' % aperto); return 3
+              '- If the user is CONTINUING the same work (follow-up, fix, "also do X"): add steps with plancia_piano_aggiungi (`plancia piano aggiungi "F: ... <- E"`).\n'
+              '- If this is a NEW, unrelated user request: repeat with --new as first argument (MCP: "nuovo": true).' % aperto); return 3
     steps, prev = [], None
     for n, raw in enumerate(args[1:]):
         m = re.match(r"^\s*([A-Za-z0-9][\w.-]{0,15})\s*[:)]\s*(.+?)\s*(?:<-\s*([\w.,\s-]*))?$", raw)

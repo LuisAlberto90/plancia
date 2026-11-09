@@ -124,7 +124,7 @@ def stato_pannello(prompt=True, cc=None, cp=None):
     for x in piani:                                                    # piano scritto dall'agente con `plancia piano nuovo` durante l'ultima richiesta
         try: d0 = json.loads(Path(x["file"]).read_text(encoding="utf-8")) if x.get("file", "").endswith(".json") else {}
         except Exception: d0 = {}
-        if d0.get("fonte") == "agente" and inizio0 and d0.get("creato_epoch", 0) >= inizio0 - 5:
+        if d0.get("fonte") == "agente" and inizio0 and max(d0.get("creato_epoch", 0), Path(x["file"]).stat().st_mtime) >= inizio0 - 5:   # anche un piano esteso con "aggiungi" in questa richiesta
             az = {}
             for a in rich[0]["attivita"]:
                 if a.get("passo"): az.setdefault(a["passo"], []).append(a)

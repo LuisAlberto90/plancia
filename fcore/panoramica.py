@@ -359,7 +359,7 @@ def stato_piano(rad, aperte):
     for f in (fac / "piani").glob("*.json"):
         try: d = json.loads(f.read_text(encoding="utf-8"))
         except Exception: continue
-        ep = d.get("creato_epoch") or f.stat().st_mtime
+        ep = max(d.get("creato_epoch") or 0, f.stat().st_mtime)               # un piano esteso con "aggiungi" vale per la richiesta che lo ha esteso
         if ep > ue: ult, ue = d, ep
     lavora = any(s["stato"] in ("lavora", "permesso") for s in aperte)
     if ult and (not tp or ue < tp) and not lavora and time.time() - ue > 6 * 3600:          # piano vecchio, nessuna domanda nuova: non e "pronto", e storia

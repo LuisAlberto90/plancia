@@ -65,6 +65,16 @@ def main(a):
             arg = d.get("tool_input") if "tool_input" in d else d.get("toolArgs")
             ok, mot = policy.verifica_strumento(strum, arg)
             if ok and policy.e_scrittura(strum, arg) and policy.piano_mancante(): ok, mot = False, policy.msg_piano()
+            if ok and store.config().get("approva_sicuri"):                   # scelto dal progetto: niente "Allow" per letture, versioni, test e build
+                a3 = arg
+                if isinstance(a3, str):
+                    try: a3 = json.loads(a3)
+                    except Exception: a3 = {"command": a3}
+                if policy.approvabile(strum, a3):
+                    store.evento("approvato_da_plancia", "policy", strumento=strum, messaggio=store.redigi(str((a3 or {}).get("command") or ""), 120))
+                    if d.get("hook_event_name"): print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow", "permissionDecisionReason": "[Plancia] safe command, approved by project setting"}}))
+                    else: print(json.dumps({"permissionDecision": "allow", "permissionDecisionReason": "[Plancia] safe command, approved by project setting"}))
+                    return 0
             if ok:
                 if _fonte(d) == "vscode":                                       # VS Code: serve sapere quando parte uno strumento (sotto-agenti, permessi, guardia attiva)
                     from fcore import richieste as RQ
