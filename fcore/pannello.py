@@ -227,6 +227,13 @@ def main(a):
                 ct = "application/json"
             elif u.path == "/api/versione":
                 from fcore import mcp as _m; body, ct = json.dumps({"versione": _m.VERSIONE, "progetto": str(rad)}).encode(), "application/json"
+            elif u.path == "/api/lascia":                                   # una Plancia piu nuova chiede il posto (aggiornamento del plugin): chiudo
+                from fcore import mcp as _m
+                nv = parse_qs(u.query).get("v", [""])[0]
+                vt = lambda s: tuple(int(x) for x in s.split(".") if x.isdigit())
+                if self.client_address[0] != "127.0.0.1" or not nv or vt(nv) <= vt(_m.VERSIONE): self.send_response(403); self.end_headers(); return
+                self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
+                import threading; threading.Thread(target=lambda: (time.sleep(0.3), os._exit(0)), daemon=True).start(); return
             elif u.path == "/": body, ct = html().encode(), "text/html; charset=utf-8"
             else: self.send_response(404); self.end_headers(); return
             self.send_response(200); self.send_header("Content-Type", ct); self.send_header("Cache-Control", "no-store"); self.end_headers(); self.wfile.write(body)

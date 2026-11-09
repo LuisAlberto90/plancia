@@ -77,7 +77,19 @@ def pannello_acceso(porta=8780):
 
 def avvia_pannello():
     """La Plancia sempre pronta su http://127.0.0.1:8780, senza aprire finestre."""
-    if os.environ.get("PLANCIA_NO_PANNELLO") or pannello_acceso(): return
+    if os.environ.get("PLANCIA_NO_PANNELLO"): return
+    if pannello_acceso():
+        try:                                                              # c'e una Plancia piu vecchia (prima dell'aggiornamento)? le chiedo il posto
+            import urllib.request
+            from fcore import mcp as _m
+            with urllib.request.urlopen("http://127.0.0.1:8780/api/versione", timeout=1) as r: v = json.loads(r.read().decode()).get("versione") or ""
+            vt = lambda s: tuple(int(x) for x in s.split(".") if x.isdigit())
+            if not vt(v) or vt(v) >= vt(_m.VERSIONE): return
+            urllib.request.urlopen("http://127.0.0.1:8780/api/lascia?v=" + _m.VERSIONE, timeout=1).read()
+            for _ in range(15):
+                time.sleep(0.2)
+                if not pannello_acceso(): break
+        except Exception: return
     fy = str(Path(__file__).resolve().parent.parent / "factory.py")
     kw = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, "cwd": str(Path.home())}
     if os.name == "nt": kw["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000      # DETACHED_PROCESS | NEW_PROCESS_GROUP | CREATE_NO_WINDOW
