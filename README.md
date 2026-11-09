@@ -60,6 +60,9 @@ Nel pannello:
 - **Strumenti**: le *skill* (guide che l'agente legge solo quando servono), le istruzioni fisse (lette a ogni domanda: costano sempre) e le **proposte**: per ognuna dici *Sì* (la Plancia la crea da sola, o ti dà il testo pronto da incollare in chat) o *No* (non te la ripropone più per quel progetto). Le skill "per tutti i progetti" valgono ovunque; quelle "solo questo progetto" restano lì, escluse da git.
 - **Prove** (nascosta): `http://127.0.0.1:8780/?prove=1` — 10 prove guidate per chi sviluppa la Plancia.
 
+**Non succede niente?** Nel terminale: `py "<cartella del plugin>\factory.py" controlla` — dice in italiano cosa manca (Python, plugin, hook, pannello, progetti) e come sistemarlo.
+In VS Code: `Ctrl+Shift+P` → *Customizations* → **Hooks** deve elencare gli hook di *plancia*; *View → Output → GitHub Copilot Chat Hooks* mostra se partono.
+
 ## 3. Aggiornare
 
 **Plugin di VS Code** (PowerShell, una riga):

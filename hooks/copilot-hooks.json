@@ -4,48 +4,48 @@
     "sessionStart": [
       {
         "type": "command",
-        "bash": "python3 \"$HOME/.plancia/hook.py\" SessionStart",
-        "powershell": "py \"$HOME\\.plancia\\hook.py\" SessionStart",
+        "bash": "r=$(cat \"$HOME/.plancia/root.txt\" 2>/dev/null); if [ ! -f \"$r/fcore/auto.py\" ]; then a=$(find \"$HOME/.copilot/installed-plugins\" \"$HOME/.vscode/agent-plugins\" \"$HOME/.claude/plugins\" -maxdepth 7 -path '*/fcore/auto.py' 2>/dev/null | head -n 1); r=${a%/fcore/auto.py}; fi; if [ -n \"$r\" ] && [ -f \"$r/factory.py\" ]; then exec python3 \"$r/factory.py\" hook SessionStart --plugin; fi",
+        "powershell": "$r=''; $t=\"$HOME\\.plancia\\root.txt\"; if (Test-Path $t) { $r=(Get-Content $t -Raw).Trim() }; if (-not $r -or -not (Test-Path \"$r\\fcore\\auto.py\")) { $r=(Get-ChildItem \"$HOME\\.copilot\\installed-plugins\",\"$HOME\\.vscode\\agent-plugins\",\"$HOME\\.claude\\plugins\" -Recurse -Depth 6 -Filter auto.py -ErrorAction SilentlyContinue | Where-Object { $_.Directory.Name -eq 'fcore' -and (Test-Path (Join-Path $_.Directory.Parent.FullName 'factory.py')) } | Select-Object -First 1).Directory.Parent.FullName }; if ($r) { py \"$r\\factory.py\" hook SessionStart --plugin }",
         "timeoutSec": 30
       }
     ],
     "userPromptSubmitted": [
       {
         "type": "command",
-        "bash": "python3 \"$HOME/.plancia/hook.py\" UserPromptSubmit",
-        "powershell": "py \"$HOME\\.plancia\\hook.py\" UserPromptSubmit",
+        "bash": "r=$(cat \"$HOME/.plancia/root.txt\" 2>/dev/null); if [ ! -f \"$r/fcore/auto.py\" ]; then a=$(find \"$HOME/.copilot/installed-plugins\" \"$HOME/.vscode/agent-plugins\" \"$HOME/.claude/plugins\" -maxdepth 7 -path '*/fcore/auto.py' 2>/dev/null | head -n 1); r=${a%/fcore/auto.py}; fi; if [ -n \"$r\" ] && [ -f \"$r/factory.py\" ]; then exec python3 \"$r/factory.py\" hook UserPromptSubmit --plugin; fi",
+        "powershell": "$r=''; $t=\"$HOME\\.plancia\\root.txt\"; if (Test-Path $t) { $r=(Get-Content $t -Raw).Trim() }; if (-not $r -or -not (Test-Path \"$r\\fcore\\auto.py\")) { $r=(Get-ChildItem \"$HOME\\.copilot\\installed-plugins\",\"$HOME\\.vscode\\agent-plugins\",\"$HOME\\.claude\\plugins\" -Recurse -Depth 6 -Filter auto.py -ErrorAction SilentlyContinue | Where-Object { $_.Directory.Name -eq 'fcore' -and (Test-Path (Join-Path $_.Directory.Parent.FullName 'factory.py')) } | Select-Object -First 1).Directory.Parent.FullName }; if ($r) { py \"$r\\factory.py\" hook UserPromptSubmit --plugin }",
         "timeoutSec": 30
       }
     ],
     "preToolUse": [
       {
         "type": "command",
-        "bash": "python3 \"$HOME/.plancia/hook.py\" PreToolUse",
-        "powershell": "py \"$HOME\\.plancia\\hook.py\" PreToolUse",
+        "bash": "r=$(cat \"$HOME/.plancia/root.txt\" 2>/dev/null); if [ ! -f \"$r/fcore/auto.py\" ]; then a=$(find \"$HOME/.copilot/installed-plugins\" \"$HOME/.vscode/agent-plugins\" \"$HOME/.claude/plugins\" -maxdepth 7 -path '*/fcore/auto.py' 2>/dev/null | head -n 1); r=${a%/fcore/auto.py}; fi; if [ -n \"$r\" ] && [ -f \"$r/factory.py\" ]; then exec python3 \"$r/factory.py\" hook PreToolUse --plugin; fi",
+        "powershell": "$r=''; $t=\"$HOME\\.plancia\\root.txt\"; if (Test-Path $t) { $r=(Get-Content $t -Raw).Trim() }; if (-not $r -or -not (Test-Path \"$r\\fcore\\auto.py\")) { $r=(Get-ChildItem \"$HOME\\.copilot\\installed-plugins\",\"$HOME\\.vscode\\agent-plugins\",\"$HOME\\.claude\\plugins\" -Recurse -Depth 6 -Filter auto.py -ErrorAction SilentlyContinue | Where-Object { $_.Directory.Name -eq 'fcore' -and (Test-Path (Join-Path $_.Directory.Parent.FullName 'factory.py')) } | Select-Object -First 1).Directory.Parent.FullName }; if ($r) { py \"$r\\factory.py\" hook PreToolUse --plugin }",
         "timeoutSec": 30
       }
     ],
     "postToolUse": [
       {
         "type": "command",
-        "bash": "python3 \"$HOME/.plancia/hook.py\" PostToolUse",
-        "powershell": "py \"$HOME\\.plancia\\hook.py\" PostToolUse",
+        "bash": "r=$(cat \"$HOME/.plancia/root.txt\" 2>/dev/null); if [ ! -f \"$r/fcore/auto.py\" ]; then a=$(find \"$HOME/.copilot/installed-plugins\" \"$HOME/.vscode/agent-plugins\" \"$HOME/.claude/plugins\" -maxdepth 7 -path '*/fcore/auto.py' 2>/dev/null | head -n 1); r=${a%/fcore/auto.py}; fi; if [ -n \"$r\" ] && [ -f \"$r/factory.py\" ]; then exec python3 \"$r/factory.py\" hook PostToolUse --plugin; fi",
+        "powershell": "$r=''; $t=\"$HOME\\.plancia\\root.txt\"; if (Test-Path $t) { $r=(Get-Content $t -Raw).Trim() }; if (-not $r -or -not (Test-Path \"$r\\fcore\\auto.py\")) { $r=(Get-ChildItem \"$HOME\\.copilot\\installed-plugins\",\"$HOME\\.vscode\\agent-plugins\",\"$HOME\\.claude\\plugins\" -Recurse -Depth 6 -Filter auto.py -ErrorAction SilentlyContinue | Where-Object { $_.Directory.Name -eq 'fcore' -and (Test-Path (Join-Path $_.Directory.Parent.FullName 'factory.py')) } | Select-Object -First 1).Directory.Parent.FullName }; if ($r) { py \"$r\\factory.py\" hook PostToolUse --plugin }",
         "timeoutSec": 30
       }
     ],
     "sessionEnd": [
       {
         "type": "command",
-        "bash": "python3 \"$HOME/.plancia/hook.py\" SessionEnd",
-        "powershell": "py \"$HOME\\.plancia\\hook.py\" SessionEnd",
+        "bash": "r=$(cat \"$HOME/.plancia/root.txt\" 2>/dev/null); if [ ! -f \"$r/fcore/auto.py\" ]; then a=$(find \"$HOME/.copilot/installed-plugins\" \"$HOME/.vscode/agent-plugins\" \"$HOME/.claude/plugins\" -maxdepth 7 -path '*/fcore/auto.py' 2>/dev/null | head -n 1); r=${a%/fcore/auto.py}; fi; if [ -n \"$r\" ] && [ -f \"$r/factory.py\" ]; then exec python3 \"$r/factory.py\" hook SessionEnd --plugin; fi",
+        "powershell": "$r=''; $t=\"$HOME\\.plancia\\root.txt\"; if (Test-Path $t) { $r=(Get-Content $t -Raw).Trim() }; if (-not $r -or -not (Test-Path \"$r\\fcore\\auto.py\")) { $r=(Get-ChildItem \"$HOME\\.copilot\\installed-plugins\",\"$HOME\\.vscode\\agent-plugins\",\"$HOME\\.claude\\plugins\" -Recurse -Depth 6 -Filter auto.py -ErrorAction SilentlyContinue | Where-Object { $_.Directory.Name -eq 'fcore' -and (Test-Path (Join-Path $_.Directory.Parent.FullName 'factory.py')) } | Select-Object -First 1).Directory.Parent.FullName }; if ($r) { py \"$r\\factory.py\" hook SessionEnd --plugin }",
         "timeoutSec": 30
       }
     ],
     "agentStop": [
       {
         "type": "command",
-        "bash": "python3 \"$HOME/.plancia/hook.py\" Stop",
-        "powershell": "py \"$HOME\\.plancia\\hook.py\" Stop",
+        "bash": "r=$(cat \"$HOME/.plancia/root.txt\" 2>/dev/null); if [ ! -f \"$r/fcore/auto.py\" ]; then a=$(find \"$HOME/.copilot/installed-plugins\" \"$HOME/.vscode/agent-plugins\" \"$HOME/.claude/plugins\" -maxdepth 7 -path '*/fcore/auto.py' 2>/dev/null | head -n 1); r=${a%/fcore/auto.py}; fi; if [ -n \"$r\" ] && [ -f \"$r/factory.py\" ]; then exec python3 \"$r/factory.py\" hook Stop --plugin; fi",
+        "powershell": "$r=''; $t=\"$HOME\\.plancia\\root.txt\"; if (Test-Path $t) { $r=(Get-Content $t -Raw).Trim() }; if (-not $r -or -not (Test-Path \"$r\\fcore\\auto.py\")) { $r=(Get-ChildItem \"$HOME\\.copilot\\installed-plugins\",\"$HOME\\.vscode\\agent-plugins\",\"$HOME\\.claude\\plugins\" -Recurse -Depth 6 -Filter auto.py -ErrorAction SilentlyContinue | Where-Object { $_.Directory.Name -eq 'fcore' -and (Test-Path (Join-Path $_.Directory.Parent.FullName 'factory.py')) } | Select-Object -First 1).Directory.Parent.FullName }; if ($r) { py \"$r\\factory.py\" hook Stop --plugin }",
         "timeoutSec": 30
       }
     ]

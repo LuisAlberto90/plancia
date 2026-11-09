@@ -8,6 +8,7 @@
   plancia diagnosi         zip da mandare a chi ti supporta (struttura, configurazioni, eventi, errori; nessun codice sorgente)
   plancia strumenti        skill, server MCP, hook, istruzioni e plugin del progetto, con proposte
   plancia skill-progetto   crea la skill del progetto con i comandi di build/test verificati (--scrivi)
+  plancia controlla        controlla l'installazione e dice cosa manca e come sistemarlo
   plancia scollega         toglie dal progetto hook, regola e MCP dell'installazione classica (per passare al plugin) (--scrivi)
   plancia archivia         mette da parte lo storico (piani, eventi, prove) in .factory/archivio/ e riparte pulito
   plancia progetti         tutti i progetti: chi lavora, chi aspetta te, errori, fermi, consumo (anche nel pannello, scheda Progetti)
@@ -242,6 +243,9 @@ def main(a):
     if c in ("strumenti", "skill-progetto"):
         from fcore import strumenti
         return strumenti.main(([c] if c == "skill-progetto" else []) + r)
+    if c == "controlla":
+        from fcore import controlla
+        return controlla.main(r)
     if c == "scollega":
         out = []; scollega(store.radice(), "--scrivi" in r, out)
         print("\n".join(out) + ("" if "--scrivi" in r else "\n(prova a vuoto: aggiungi --scrivi)")); return 0

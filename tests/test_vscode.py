@@ -122,4 +122,15 @@ check(not AU.ha_hook_propri(pv), "plugin: gli hook della vecchia Lavagna non blo
 x = subprocess.run([sys.executable, str(Path(__file__).resolve().parent.parent / "factory.py"), "scollega", "--scrivi"], cwd=pv, env=dict(envp, FACTORY_ROOT=str(pv)), capture_output=True, text=True, encoding="utf-8", errors="replace")
 s_ = json.loads((pv / ".claude" / "settings.json").read_text())
 check("hooks" not in s_ and s_.get("other") == 1 and not (pv / ".github" / "hooks" / "lavagna.json").exists() and "lavagna" not in (pv / "AGENTS.md").read_text() and "# team rules" in (pv / "AGENTS.md").read_text(), "scollega: toglie solo hook/regola della Plancia, il resto resta %s" % x.stdout[:200])
+
+# installazione nuova da Copilot CLI (nessun ~/.plancia): gli hook in formato Copilot trovano la Plancia da soli
+if os.name != "nt":
+    import shutil as _sh
+    hc = Path(tempfile.mkdtemp()); dst = hc / ".copilot" / "installed-plugins" / "_direct" / "abc"
+    _sh.copytree(str(Path(__file__).resolve().parent.parent), str(dst), ignore=_sh.ignore_patterns(".git", "__pycache__"))
+    pc = Path(tempfile.mkdtemp()) / "progC"; pc.mkdir(); (pc / "package.json").write_text("{}"); subprocess.run(["git", "init", "-q"], cwd=pc)
+    cmd = json.loads((dst / "hooks" / "copilot-hooks.json").read_text())["hooks"]["preToolUse"][0]["bash"]
+    x = subprocess.run(["bash", "-c", cmd], cwd=str(pc), env=dict(os.environ, HOME=str(hc), PLANCIA_NO_PANNELLO="1", PLANCIA_HOME=str(hc / ".plancia")),
+                       input=json.dumps({"toolName": "edit", "toolArgs": json.dumps({"path": str(pc / ".env")}), "sessionId": "c1", "cwd": str(pc)}), capture_output=True, text=True, encoding="utf-8", errors="replace")
+    check('"deny"' in x.stdout and (pc / ".factory").is_dir(), "Copilot CLI, prima installazione: gli hook trovano la Plancia senza ~/.plancia %s %s" % (x.stdout[:80], x.stderr[-200:]))
 print("%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)
