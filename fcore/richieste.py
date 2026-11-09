@@ -57,7 +57,7 @@ def _azione(n, i, cwd):
     f = i.get("file_path") or i.get("notebook_path") or i.get("path") or i.get("filePath")
     if not f and isinstance(i.get("files"), list) and i["files"]: f = ", ".join(str(x if isinstance(x, str) else (x or {}).get("path") or (x or {}).get("filePath") or "") for x in i["files"][:3])
     if f and cwd and os.path.isabs(str(f)):
-        try: f = os.path.relpath(f, cwd)
+        try: f = os.path.relpath(f, cwd).replace("\\", "/")
         except Exception: pass
     if nl in SHELL_N:
         cmd = i.get("command") or i.get("cmd") or ""
@@ -70,7 +70,7 @@ def _azione(n, i, cwd):
         if fs:
             f = ", ".join(fs[:3])
             if cwd:
-                try: f = ", ".join(os.path.relpath(x, cwd) if os.path.isabs(x) else x for x in fs[:3])
+                try: f = ", ".join((os.path.relpath(x, cwd) if os.path.isabs(x) else x).replace("\\", "/") for x in fs[:3])
                 except Exception: pass
     if nl in LEGGE_N: return "leggi", f or "file"
     if n in SCRIVONO or any(x in nl for x in ("edit", "write", "replace", "create_file", "insert", "apply_patch", "str_replace")): return "modifica", f or "file"
@@ -148,7 +148,7 @@ def da_claude(f):
             if tp: r["_id"][b.get("id")] = len(r["attivita"]); r["attivita"].append({"tipo": tp, "cosa": cosa, "esito": "in corso", "ts": ts, "bg": bool(i.get("run_in_background")), "passo": r["_passo"], "cmd": str(i.get("command") or "")[:400]})
             if n in ("Task", "Agent"): rami.lancio(b); r["sotto_agenti"] += 1
             if n in SCRIVONO and (i.get("file_path") or i.get("notebook_path")):
-                p = os.path.relpath(i.get("file_path") or i.get("notebook_path"), d.get("cwd") or "/") if os.path.isabs(str(i.get("file_path") or i.get("notebook_path"))) else (i.get("file_path") or i.get("notebook_path"))
+                p = (os.path.relpath(i.get("file_path") or i.get("notebook_path"), d.get("cwd") or "/") if os.path.isabs(str(i.get("file_path") or i.get("notebook_path"))) else (i.get("file_path") or i.get("notebook_path"))).replace("\\", "/")
                 if p not in r["file"]: r["file"].append(p)
             if n == "Bash" and i.get("command"): r["comandi"].append(lib.redigi(i["command"], 90))
         if not usa and any(isinstance(b, dict) and b.get("type") == "text" and b.get("text", "").strip() for b in (c if isinstance(c, list) else [])):
