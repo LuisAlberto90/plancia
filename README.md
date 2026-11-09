@@ -8,6 +8,8 @@ chi lavora, chi aspetta te, chi aspetta un permesso, chi sbaglia o gira in tondo
 Per ogni domanda l'agente scrive prima un **piano a passi** (con rami paralleli) e la Plancia lo disegna come grafo,
 con le azioni e gli errori di ogni passo. Le **guardie** bloccano file protetti (`.env`, chiavi, `.git`) e comandi pericolosi.
 
+**Come funziona dentro** (hook, plugin, MCP locale, dati, sicurezza, con schemi): [docs/ARCHITETTURA.md](docs/ARCHITETTURA.md).
+
 Zero token per guardare: la Plancia legge le trascrizioni e gli hook, non chiede niente al modello.
 Serve solo **Python 3.9+** (su Windows il comando `py`) e **git**.
 
