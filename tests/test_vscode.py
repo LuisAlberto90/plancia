@@ -111,4 +111,15 @@ st_ = [{"id": "A", "testo": "read x", "stato": "FATTO", "azioni": [{"tipo": "leg
        {"id": "C", "testo": "run tests", "stato": "DA_FARE"}, {"id": "D", "testo": "Summary", "stato": "FATTO", "dettaglio": "done"}]
 ad = PNL._aderenza(st_, {"finita": True}, [{"cosa": "z.py"}])
 check(ad["voto"] < 60 and any("B" in n for n in ad["note"]) and any("C" in n for n in ad["note"]) and any("fuori" in n for n in ad["note"]), "aderenza: vede passi vuoti, aperti e modifiche fuori piano %s" % ad)
+
+# progetto con la vecchia installazione (hook che puntano a una cartella che non c'e piu): il plugin registra lo stesso; scollega pulisce
+pv = Path(tempfile.mkdtemp()) / "progOld"; (pv / ".claude").mkdir(parents=True); (pv / ".github" / "hooks").mkdir(parents=True); subprocess.run(["git", "init", "-q"], cwd=pv)
+(pv / ".claude" / "settings.json").write_text(json.dumps({"hooks": {"PreToolUse": [{"hooks": [{"type": "command", "command": 'py "C:/Strumenti/lavagna/factory.py" hook PreToolUse'}]}]}, "other": 1}))
+(pv / ".github" / "hooks" / "lavagna.json").write_text("{}")
+(pv / "AGENTS.md").write_text("# team rules\n<!-- lavagna:inizio -->\nold\n<!-- lavagna:fine -->\n")
+from fcore import auto as AU
+check(not AU.ha_hook_propri(pv), "plugin: gli hook della vecchia Lavagna non bloccano il plugin")
+x = subprocess.run([sys.executable, str(Path(__file__).resolve().parent.parent / "factory.py"), "scollega", "--scrivi"], cwd=pv, env=dict(envp, FACTORY_ROOT=str(pv)), capture_output=True, text=True, encoding="utf-8", errors="replace")
+s_ = json.loads((pv / ".claude" / "settings.json").read_text())
+check("hooks" not in s_ and s_.get("other") == 1 and not (pv / ".github" / "hooks" / "lavagna.json").exists() and "lavagna" not in (pv / "AGENTS.md").read_text() and "# team rules" in (pv / "AGENTS.md").read_text(), "scollega: toglie solo hook/regola della Plancia, il resto resta %s" % x.stdout[:200])
 print("%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

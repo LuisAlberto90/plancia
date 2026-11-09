@@ -49,11 +49,15 @@ def mappa_se_manca(rad):
 
 
 def ha_hook_propri(rad):
-    """Il progetto ha gia gli hook della Plancia (installazione classica): il plugin non deve registrare due volte."""
+    """Il progetto ha gia hook della Plancia FUNZIONANTI (installazione classica): il plugin non deve registrare due volte.
+    Se gli hook puntano a un programma che non esiste piu (es. la vecchia cartella della Lavagna), registra il plugin."""
+    import re as _re
     for f in (rad / ".claude" / "settings.json", rad / ".github" / "hooks" / "plancia.json"):
         try:
             t = f.read_text(encoding="utf-8")
-            if " hook" in t and ("factory.py" in t or "plancia" in t): return True
+            if " hook" not in t: continue
+            for m in _re.findall(r'([A-Za-z]:[\\/][^"\n]*?factory\.py|/[^"\n ]*?factory\.py)', t.replace("\\\\", "\\")):
+                if "lavagna" not in m.lower() and os.path.isfile(m.replace("\\", "/") if os.name != "nt" else m): return True   # la vecchia Lavagna non conta: registra il plugin
         except Exception: pass
     return False
 

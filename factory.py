@@ -8,6 +8,7 @@
   plancia diagnosi         zip da mandare a chi ti supporta (struttura, configurazioni, eventi, errori; nessun codice sorgente)
   plancia strumenti        skill, server MCP, hook, istruzioni e plugin del progetto, con proposte
   plancia skill-progetto   crea la skill del progetto con i comandi di build/test verificati (--scrivi)
+  plancia scollega         toglie dal progetto hook, regola e MCP dell'installazione classica (per passare al plugin) (--scrivi)
   plancia archivia         mette da parte lo storico (piani, eventi, prove) in .factory/archivio/ e riparte pulito
   plancia progetti         tutti i progetti: chi lavora, chi aspetta te, errori, fermi, consumo (anche nel pannello, scheda Progetti)
   plancia piano nuovo "Titolo" "A: ..." "B: ... <- A"   l'agente scrive il piano della richiesta (il pannello lo disegna)
@@ -101,6 +102,37 @@ def init_hook(r, scrivi, out, modo="governata"):
         if v2.exists():
             out.append(("rimosso" if scrivi else "rimuoverei") + " il vecchio .github/hooks/%s.json" % VECCHIO)
             if scrivi: v2.unlink()
+
+
+def scollega(r, scrivi, out):
+    """Toglie dal progetto l'installazione classica (hook, regola, MCP) per passare al plugin: nel repository non resta nulla della Plancia."""
+    cs = r / ".claude" / "settings.json"
+    if cs.exists():
+        d = _json(cs); h = d.get("hooks") or {}; tolti = 0
+        for ev in list(h):
+            nuovi = [x for x in h[ev] if not _nostro(x)]; tolti += len(h[ev]) - len(nuovi)
+            if nuovi: h[ev] = nuovi
+            else: h.pop(ev)
+        if tolti:
+            if not h: d.pop("hooks", None)
+            out.append(("tolti" if scrivi else "toglierei") + " %d hook da .claude/settings.json" % tolti)
+            if scrivi:
+                if d: _salva_json(cs, d)
+                else: cs.unlink()
+    for n in ("plancia.json", VECCHIO + ".json", "factory-plancia.json"):
+        f = r / ".github" / "hooks" / n
+        if f.exists():
+            out.append(("rimosso" if scrivi else "rimuoverei") + " .github/hooks/" + n)
+            if scrivi: f.unlink()
+    for f in (r / "AGENTS.md", r / "CLAUDE.md"):
+        if f.exists():
+            t0 = f.read_text(encoding="utf-8").replace("<!-- %s:inizio -->" % VECCHIO, REGOLA_INIZIO).replace("<!-- %s:fine -->" % VECCHIO, REGOLA_FINE)
+            if REGOLA_INIZIO in t0:
+                if scrivi: f.write_text(t0, encoding="utf-8")
+                togli_regola(f, scrivi, out)
+                if scrivi and f.name == "CLAUDE.md" and f.read_text(encoding="utf-8").strip() in ("", "@AGENTS.md") and not (r / "AGENTS.md").exists(): f.unlink()
+    togli_mcp(r, scrivi, out)
+    if not out: out.append("niente da togliere: il progetto non ha l'installazione classica")
 
 
 def init_mcp_piano(r, scrivi, out):
@@ -210,6 +242,9 @@ def main(a):
     if c in ("strumenti", "skill-progetto"):
         from fcore import strumenti
         return strumenti.main(([c] if c == "skill-progetto" else []) + r)
+    if c == "scollega":
+        out = []; scollega(store.radice(), "--scrivi" in r, out)
+        print("\n".join(out) + ("" if "--scrivi" in r else "\n(prova a vuoto: aggiungi --scrivi)")); return 0
     if c == "archivia":
         from fcore import archivio
         return archivio.archivia("--prova" not in r)

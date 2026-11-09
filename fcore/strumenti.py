@@ -165,9 +165,19 @@ def proposte(rad, sk, ist, mc, tutte=False):
         p.append({"id": "skill-angular", "titolo": "Come si costruisce e si prova il frontend Angular", "ambito": "solo questo progetto",
                   "perche": "Evita che l'agente provi comandi npm a caso o rompa la configurazione dei test.",
                   "azione": {"tipo": "prompt", "testo": "Create a project skill at .claude/skills/%s-angular/SKILL.md (then add .claude/skills/%s-angular/ to .git/info/exclude). Read package.json, angular.json and the test config (karma/jest) and write in max 40 lines: how to install, build, serve and test, which test runner and how specs are written here, known pitfalls. Only facts you saw. Plan first." % (_slug(nome_p), _slug(nome_p))}})
+    clas = (r / ".github" / "hooks" / "plancia.json").exists() or (r / ".github" / "hooks" / "lavagna.json").exists() or "plancia:inizio" in _leggi(r / "AGENTS.md") or "lavagna:inizio" in _leggi(r / "AGENTS.md")
+    if clas and any(s["dove"].startswith("plugin") for s in sk):
+        p.append({"id": "passa-al-plugin", "titolo": "Questo progetto ha ancora la vecchia installazione", "ambito": "solo questo progetto",
+                  "perche": "Hook, regola e strumenti scritti dentro il progetto (AGENTS.md, .github/hooks, .claude/settings.json, .vscode/mcp.json) dalla versione classica o dalla vecchia Lavagna. Col plugin non servono piu e possono puntare a programmi che non esistono, cosi la Plancia non vede niente.",
+                  "azione": {"tipo": "crea", "testo": "Tolgo dal progetto solo le parti della Plancia/Lavagna: il resto dei file resta com'e."}})
     rif = _rifiutate(rad)
     for x in p: x["rifiutata"] = x["id"] in rif
     return p if tutte else [x for x in p if not x["rifiutata"]]
+
+
+def _leggi(f):
+    try: return Path(f).read_text(encoding="utf-8", errors="ignore")
+    except Exception: return ""
 
 
 def _slug(s): return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:30] or "progetto"
@@ -193,6 +203,12 @@ def azione_proposta(rad, pid, azione):
         for d in (Path.home() / ".claude" / "skills" / "plancia-metodo", Path.home() / ".copilot" / "skills" / "plancia-metodo"):
             if (d / "SKILL.md").exists(): shutil.rmtree(d, ignore_errors=True)
         return {"ok": True, "messaggio": "Fatto: resta solo il metodo del plugin."}
+    elif azione == "crea" and pid == "passa-al-plugin":
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("factory_main", str(Path(__file__).resolve().parent.parent / "factory.py"))
+        fm = importlib.util.module_from_spec(spec); spec.loader.exec_module(fm)
+        out = []; fm.scollega(rad, True, out)
+        return {"ok": True, "messaggio": "Fatto: " + "; ".join(out[:4]) + ". Riapri la chat: da adesso ci pensa il plugin."}
     elif azione == "crea" and pid == "skill-metodo":
         from fcore import metodo
         metodo.installa(globale=True, scrivi=True)

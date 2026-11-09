@@ -71,6 +71,10 @@ Linux/Mac: `git -C ~/.vscode/agent-plugins/github.com/LuisAlberto90/plancia pull
 
 **Copilot CLI**: `copilot plugin update plancia` · **Claude Code**: `/plugin update plancia` · **Installazione classica**: doppio clic su **Aggiorna-Plancia.cmd**.
 
+**Progetti preparati con la versione classica o con la vecchia Lavagna**: col plugin non servono più hook e regola dentro il progetto.
+In **Strumenti** trovi la proposta *"Questo progetto ha ancora la vecchia installazione"* → **Sì, fallo tu**; oppure da terminale nel progetto:
+`py "$HOME\.vscode\agent-plugins\github.com\LuisAlberto90\plancia\factory.py" scollega --scrivi` (toglie solo le parti della Plancia).
+
 ## 4. Cosa scrive nei progetti
 
 Con il plugin: solo `.factory/` (piani, eventi, mappa, guardie), esclusa da git in `.git/info/exclude`. La regola del piano arriva all'agente a inizio sessione (~200 token).
