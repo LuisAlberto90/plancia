@@ -85,7 +85,8 @@ def avvia_pannello():
             with urllib.request.urlopen("http://127.0.0.1:8780/api/versione", timeout=1) as r: v = json.loads(r.read().decode()).get("versione") or ""  # noqa: S310  # nosec B310
             vt = lambda s: tuple(int(x) for x in s.split(".") if x.isdigit())
             if not vt(v) or vt(v) >= vt(_m.VERSIONE): return
-            urllib.request.urlopen(urllib.request.Request("http://127.0.0.1:8780/api/lascia?v=" + _m.VERSIONE, headers={"X-Plancia": "1"}), timeout=1).read()  # noqa: S310  # nosec B310
+            try: urllib.request.urlopen(urllib.request.Request("http://127.0.0.1:8780/api/lascia?v=" + _m.VERSIONE, headers={"X-Plancia": "1"}), timeout=1).read()  # noqa: S310  # nosec B310
+            except Exception: _ferma_vecchio()                             # versioni prima della 0.16.2 non sanno farsi da parte
             for _ in range(15):
                 time.sleep(0.2)
                 if not pannello_acceso(): break
@@ -95,6 +96,23 @@ def avvia_pannello():
     if os.name == "nt": kw["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000      # DETACHED_PROCESS | NEW_PROCESS_GROUP | CREATE_NO_WINDOW
     else: kw["start_new_session"] = True
     try: subprocess.Popen([sys.executable, fy, "pannello", "--no-browser"], **kw)
+    except Exception: pass
+
+
+def _ferma_vecchio():
+    """Chiude solo i pannelli Plancia/Lavagna dell'utente (processo python con 'factory.py' e 'pannello' nella riga di comando)."""
+    try:
+        if os.name == "nt":
+            ps = ("Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*factory.py*pannello*' -and $_.ProcessId -ne $PID } "
+                  "| ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }")
+            subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], capture_output=True, timeout=15, creationflags=0x08000000)
+        else:
+            me = os.getpid()
+            for d in os.listdir("/proc"):
+                if not d.isdigit() or int(d) == me: continue
+                try: cmd = open("/proc/%s/cmdline" % d, "rb").read().replace(b"\0", b" ").decode("utf-8", "replace")
+                except Exception: continue
+                if "factory.py" in cmd and " pannello" in cmd and os.stat("/proc/" + d).st_uid == os.getuid(): os.kill(int(d), 15)
     except Exception: pass
 
 
