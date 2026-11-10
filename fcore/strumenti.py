@@ -252,7 +252,7 @@ def proposte(rad, sk, ist, mc, tutte=False, ag=()):
     try: cand, _info = PT.analizza(rad)
     except Exception: cand = []
     for c in cand:
-        x = {k: c[k] for k in ("id", "genere", "titolo", "ambito", "visto", "perche", "effetto") if k in c}
+        x = {k: c[k] for k in ("id", "genere", "titolo", "ambito", "visto", "perche", "effetto", "scegli_cartella") if k in c}
         if c["tipo_cand"] in ("comando", "analista"):
             x["scegli_agente"] = True; x["solo_uno"] = bool(c.get("solo_uno")); x["azione"] = {"tipo": "crea", "testo": c["effetto"]}
             if c["tipo_cand"] == "comando" and not c.get("completi"): x["scegli_agente"] = False; x["azione"] = {"tipo": "info", "testo": "I comandi visti sono troppo lunghi per scriverli giusti in automatico. Chiedi all'agente: \"Create a project skill with the exact build/test commands you use here\"."}

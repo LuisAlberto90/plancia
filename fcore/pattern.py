@@ -99,9 +99,9 @@ def _analizza(rad, limite):
         cand.append({"id": "cand-file-riletti", "genere": "skill", "tipo_cand": "file", "peso": caldi[0][1],
                      "titolo": "L'agente rilegge ogni volta gli stessi file (%d)" % len(caldi), "ambito": "solo questo progetto",
                      "visto": ["%s: letto in %d richieste" % (p, n) for p, n in caldi],
-                     "perche": "Se un file serve quasi a ogni richiesta, un riassunto breve (a cosa serve, funzioni chiave, trappole) fa risparmiare token e fa sbagliare meno.",
+                     "scegli_cartella": True, "perche": "Se un file serve quasi a ogni richiesta, un riassunto breve (a cosa serve, funzioni chiave, trappole) fa risparmiare token e fa sbagliare meno.",
                      "effetto": "Ti do il testo da incollare in una chat: l'agente scrive la skill leggendo quei file, una volta.",
-                     "prompt": "Create a project skill named %s-key-files with a SKILL.md (max 40 lines). Read these files: %s. For each: purpose in one line, the 3-5 functions or sections that matter, and the traps (what breaks if you change it). Description (frontmatter) must say: use when working on these files. Skills folder: .claude/skills works for both GitHub Copilot and Claude Code. Then add that folder to .git/info/exclude." % (_slug(nome), ", ".join(p for p, _ in caldi))})
+                     "prompt": "Create a project skill named %s-key-files with a SKILL.md (max 40 lines). Read these files: %s. For each: purpose in one line, the 3-5 functions or sections that matter, and the traps (what breaks if you change it). Description (frontmatter) must say: use when working on these files. Skills folder: <skills dir>. Then add that folder to .git/info/exclude." % (_slug(nome), ", ".join(p for p, _ in caldi))})
     # 3) errori che tornano
     er = {}
     for i, r in enumerate(rich):
@@ -116,9 +116,9 @@ def _analizza(rad, limite):
         cand.append({"id": "cand-errore-" + _slug(k), "genere": "skill", "tipo_cand": "errore", "peso": len(e["rich"]),
                      "titolo": "Lo stesso errore torna: `%s`" % k[:50], "ambito": "solo questo progetto",
                      "visto": ["Fallito in %d richieste diverse (ultima: %s)." % (len(e["rich"]), e["ultimo"]), "Comando: " + e["cosa"][:90]],
-                     "perche": "Quando un comando fallisce sempre allo stesso modo, la soluzione va scritta una volta in una skill: l'agente la legge invece di rifare gli stessi tentativi.",
+                     "scegli_cartella": True, "perche": "Quando un comando fallisce sempre allo stesso modo, la soluzione va scritta una volta in una skill: l'agente la legge invece di rifare gli stessi tentativi.",
                      "effetto": "Ti do il testo da incollare: l'agente riproduce l'errore, trova la causa e scrive la skill di risoluzione.",
-                     "prompt": "Run `%s` once, find why it fails and fix the cause if it is in the project config. Then create a project skill named %s-fix-%s (max 25 lines): the symptom, the cause, the exact fix, how to check it worked. Skills folder: .claude/skills works for both GitHub Copilot and Claude Code. Add the folder to .git/info/exclude." % (e["cosa"][:90], _slug(nome), _slug(k)[:20])})
+                     "prompt": "Run `%s` once, find why it fails and fix the cause if it is in the project config. Then create a project skill named %s-fix-%s (max 25 lines): the symptom, the cause, the exact fix, how to check it worked. Skills folder: <skills dir>. Add the folder to .git/info/exclude." % (e["cosa"][:90], _slug(nome), _slug(k)[:20])})
         break                                                          # uno solo per volta: il piu frequente
     # 4) domande simili
     cl = []
@@ -134,9 +134,9 @@ def _analizza(rad, limite):
         cand.append({"id": ch, "genere": "skill", "tipo_cand": "ricorrente", "peso": len(c["rich"]),
                      "titolo": "Ti capita di chiedere cose simili (%d volte)" % len(c["rich"]), "ambito": "solo questo progetto",
                      "visto": ["Richieste molto simili in %d occasioni, l'ultima il %s." % (len(c["rich"]), _quando(rich[c["rich"][0]]))] + ["«%s»" % x for x in ex],
-                     "perche": "Un compito che ripeti si puo scrivere una volta come procedura: l'agente la segue sempre allo stesso modo invece di reinventarla.",
+                     "scegli_cartella": True, "perche": "Un compito che ripeti si puo scrivere una volta come procedura: l'agente la segue sempre allo stesso modo invece di reinventarla.",
                      "effetto": "Ti do il testo da incollare: l'agente scrive la procedura partendo dalle tue richieste.",
-                     "prompt": "I often ask for things like: %s. Create a project skill (max 40 lines) named %s-%s with the procedure you would follow for this kind of request: steps, which commands/files to use, what to check at the end. The frontmatter description must say when to use it. Skills folder: .claude/skills works for both GitHub Copilot and Claude Code. Add the folder to .git/info/exclude." % ("; ".join('"%s"' % x for x in ex), _slug(nome), _slug(" ".join(sorted(c["pw"])[:2])))})
+                     "prompt": "I often ask for things like: %s. Create a project skill (max 40 lines) named %s-%s with the procedure you would follow for this kind of request: steps, which commands/files to use, what to check at the end. The frontmatter description must say when to use it. Skills folder: <skills dir>. Add the folder to .git/info/exclude." % ("; ".join('"%s"' % x for x in ex), _slug(nome), _slug(" ".join(sorted(c["pw"])[:2])))})
         break
     # 5) richieste di sola analisi -> agente di sola lettura
     sl = [r for r in rich if not any(a.get("tipo") == "modifica" for a in r.get("attivita") or []) and sum(1 for a in r.get("attivita") or [] if a.get("tipo") in ("leggi", "cerca")) >= 5 and ANALISI.search(_dom(r))]
