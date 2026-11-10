@@ -79,6 +79,12 @@ try:
         check(req("GET", "/api/panoramica", {"Host": "evil.example:%d" % porta}) == 403, "sicurezza: Host estraneo (DNS rebinding) rifiutato")
         bd = json.dumps({"p": str(proj), "id": "skill-metodo", "azione": "rifiuta"})
         check(req("POST", "/api/proposta", {"Host": "127.0.0.1:%d" % porta, "Origin": "https://evil.example", "Content-Type": "application/json"}, bd) == 403, "sicurezza: POST da un altro sito rifiutato")
+        check(req("POST", "/api/aggiorna", {"Host": "127.0.0.1:%d" % porta, "Origin": "https://evil.example", "Content-Type": "application/json"}, "{}") == 403, "sicurezza: un altro sito non puo far aggiornare la Plancia")
+        fuori = json.dumps({"p": str(proj), "file": str(proj / "README.md")})
+        check(req("POST", "/api/piano", {"Host": "127.0.0.1:%d" % porta, "Content-Type": "application/json"}, fuori) == 400, "togli piano: solo i file in .factory/piani")
+        pz = sorted((proj / ".factory" / "piani").glob("*.json"))
+        if pz:
+            check(req("POST", "/api/piano", {"Host": "127.0.0.1:%d" % porta, "Content-Type": "application/json"}, json.dumps({"p": str(proj), "file": str(pz[0])})) == 200 and not pz[0].exists() and (proj / ".factory" / "piani" / "_cestino" / pz[0].name).exists(), "togli piano: finisce nel cestino, non cancellato")
         check(req("POST", "/api/proposta", {"Host": "127.0.0.1:%d" % porta, "Content-Type": "application/json"}, json.dumps({"p": "/etc", "id": "x", "azione": "rifiuta"})) == 400, "sicurezza: progetto non registrato rifiutato")
         check(req("GET", "/api/lascia?v=99.0.0", {"Host": "127.0.0.1:%d" % porta}) == 403, "sicurezza: un sito non puo spegnere il pannello")
         b.close()

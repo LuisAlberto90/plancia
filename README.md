@@ -65,14 +65,9 @@ In VS Code: `Ctrl+Shift+P` → *Customizations* → **Hooks** deve elencare gli 
 
 ## 3. Aggiornare
 
-**Plugin di VS Code** (PowerShell, una riga):
-```
-git -C "$HOME\.vscode\agent-plugins\github.com\LuisAlberto90\plancia" pull
-```
-poi in VS Code `Ctrl+Shift+P` → **Developer: Reload Window** e fai una domanda qualsiasi: il pannello nuovo prende il posto di quello vecchio da solo.
-Linux/Mac: `git -C ~/.vscode/agent-plugins/github.com/LuisAlberto90/plancia pull`.
+Apri la Plancia (http://127.0.0.1:8780) e premi **⟳ Aggiorna la Plancia** in alto a destra. Fa tutto lei: scarica la versione nuova in tutte le copie installate (VS Code e Copilot CLI) e si riavvia da sola; la pagina si ricarica.
 
-**Copilot CLI**: `copilot plugin update plancia` · **Claude Code**: `/plugin update plancia` · **Installazione classica**: doppio clic su **Aggiorna-Plancia.cmd**.
+A mano, se serve — VS Code: `git -C "$HOME\.vscode\agent-plugins\github.com\LuisAlberto90\plancia" pull` · **Copilot CLI**: `copilot plugin update plancia` · **Claude Code**: `/plugin update plancia` · **Installazione classica**: doppio clic su **Aggiorna-Plancia.cmd**.
 
 **Progetti preparati con la versione classica o con la vecchia Lavagna**: col plugin non servono più hook e regola dentro il progetto.
 In **Strumenti** trovi la proposta *"Questo progetto ha ancora la vecchia installazione"* → **Sì, fallo tu**; oppure da terminale nel progetto:

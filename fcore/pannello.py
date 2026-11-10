@@ -94,6 +94,43 @@ def _salute(rad, piani, tasks, sess, eventi):
     return {"stato": max((x["stato"] for x in c), key=lambda s: ordine[s]), "controlli": sorted(c, key=lambda x: -ordine[x["stato"]])}
 
 
+def _cestina_piano(prog, file):
+    """Toglie un piano dalla Plancia: non lo cancella, lo sposta in .factory/piani/_cestino (si recupera a mano)."""
+    if prog not in PN.progetti(): raise ValueError("progetto non registrato")
+    base = (Path(prog) / ".factory" / "piani").resolve(); f = Path(file).resolve()
+    if f.parent != base or f.suffix != ".json" or not f.is_file(): raise ValueError("si possono togliere solo i piani scritti dall'agente in .factory/piani")
+    (base / "_cestino").mkdir(exist_ok=True); os.replace(f, base / "_cestino" / f.name)
+    return {"ok": True, "messaggio": "Piano tolto. Se ti serve ancora e in .factory/piani/_cestino."}
+
+
+def _aggiorna():
+    """Aggiorna la Plancia con un clic: git pull nelle copie installate (o `copilot plugin update`). Poi il pannello si riavvia da solo."""
+    import shutil, subprocess
+    from fcore import mcp as _m
+    git = shutil.which("git"); cop = shutil.which("copilot"); esiti = []; h = Path.home()
+    copie = {QUI.parent.resolve()}
+    for base, pat in ((h / ".vscode" / "agent-plugins", "*/*/*"), (h / ".copilot" / "installed-plugins", "*/*"), (h / ".copilot" / "installed-plugins", "*")):
+        for d in (base.glob(pat) if base.is_dir() else []):
+            if (d / "fcore" / "auto.py").is_file(): copie.add(d.resolve())
+    kw = {"capture_output": True, "text": True, "timeout": 90, "stdin": subprocess.DEVNULL}
+    if os.name == "nt": kw["creationflags"] = 0x08000000
+    for d in sorted(copie):
+        if (d / ".git").exists() and git:
+            r = subprocess.run([git, "-C", str(d), "pull", "--ff-only"], **kw)  # noqa: S603
+            esiti.append((d, r.returncode == 0, (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]))
+        elif ".copilot" in d.parts and cop:
+            r = subprocess.run([cop, "plugin", "update", "plancia"], **kw)  # noqa: S603
+            esiti.append((d, r.returncode == 0, (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]))
+        else: esiti.append((d, False, ["non so aggiornare questa copia da sola (manca git o la CLI di Copilot)"]))
+    try: nuova = re.search(r'VERSIONE\s*=\s*"([^"]+)"', (QUI / "mcp.py").read_text(encoding="utf-8")).group(1)
+    except Exception: nuova = _m.VERSIONE
+    ok = all(e[1] for e in esiti)
+    if nuova != _m.VERSIONE: msg = "Aggiornata dalla %s alla %s: tra pochi secondi la pagina si ricarica da sola." % (_m.VERSIONE, nuova)
+    elif ok: msg = "Hai gia l'ultima versione (%s)." % _m.VERSIONE
+    else: msg = "Non sono riuscita ad aggiornare tutto."
+    return {"ok": ok, "cambiata": nuova != _m.VERSIONE, "messaggio": msg, "dettagli": ["%s: %s" % (str(d).replace(str(h), "~"), "ok" if good else "NON aggiornata — " + (riga[0] if riga else "")) for d, good, riga in esiti]}
+
+
 def _rk(r): return "%s|%s" % (r.get("sessione") or "", r.get("inizio") or "")
 
 
@@ -286,8 +323,20 @@ def main(a):
         def do_POST(self):
             """Unica scrittura: accetta/rifiuta una proposta della scheda Strumenti. Solo dal pannello stesso (stessa origine), mai da altri siti."""
             u = urlparse(self.path)
-            if u.path != "/api/proposta" or not self._stessa_origine(): self.send_response(403); self.end_headers(); return
+            if u.path not in ("/api/proposta", "/api/piano", "/api/aggiorna") or not self._stessa_origine(): self.send_response(403); self.end_headers(); return
             if o.token and parse_qs(u.query).get("token", [""])[0] != o.token: self.send_response(403); self.end_headers(); return
+            if u.path in ("/api/piano", "/api/aggiorna"):
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    if n > 4096 or "application/json" not in (self.headers.get("Content-Type") or ""): raise ValueError("richiesta non valida")
+                    d = json.loads(self.rfile.read(n).decode("utf-8"))
+                    with BLOCCO:
+                        r = _aggiorna() if u.path == "/api/aggiorna" else _cestina_piano(str(d.get("p") or ""), str(d.get("file") or ""))
+                        _PAN["t"] = 0
+                    body = json.dumps(r, ensure_ascii=False).encode(); self.send_response(200)
+                except Exception as e:
+                    body = json.dumps({"ok": False, "messaggio": str(e)[:200]}).encode(); self.send_response(400)
+                self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(body))); self._sicurezza(); self.end_headers(); self.wfile.write(body); return
             try:
                 n = int(self.headers.get("Content-Length") or 0)
                 if n > 4096 or "application/json" not in (self.headers.get("Content-Type") or ""): raise ValueError("richiesta non valida")
