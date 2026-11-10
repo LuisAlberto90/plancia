@@ -236,6 +236,16 @@ def _n_proposte(rad):
     _PROP[rad] = (time.time(), n); return n
 
 
+def _impatto(rad, x):
+    """Blocchi di codice toccati da una richiesta e chi li usa (dagli import, senza AI). Mai bloccante."""
+    if not x.get("file"): return []
+    try:
+        try: from . import mappa as M
+        except ImportError: import mappa as M
+        return M.impatto(rad, x["file"])
+    except Exception: return []
+
+
 def scheda(rad, soglia_token=None):
     """Una scheda per progetto: sessioni recenti con stato, task/piano se c'e .factory, punti di attenzione."""
     os.environ["FACTORY_ROOT"] = rad
@@ -330,7 +340,7 @@ def scheda(rad, soglia_token=None):
         for x in rq3:
             ep = RQ._ts(x.get("fine") or x.get("inizio")) or 0; az = x.get("attivita") or []
             recenti.append({"domanda": lib.redigi_testo((x.get("domanda") or "").strip().split("\n")[0], 160), "fonte": x.get("fonte"), "finita": bool(x.get("finita")), "eta_txt": _eta(int(time.time() - ep)) if ep else "",
-                            "quando": time.strftime("%d/%m %H:%M", time.localtime(ep)) if ep else "", "modifiche": len(x.get("file") or []), "errori": x.get("errori") or 0, "azioni": len(az), "verifica": (x.get("verifica") or {}).get("stato") if x.get("finita") else None,
+                            "quando": time.strftime("%d/%m %H:%M", time.localtime(ep)) if ep else "", "modifiche": len(x.get("file") or []), "errori": x.get("errori") or 0, "azioni": len(az), "verifica": (x.get("verifica") or {}).get("stato") if x.get("finita") else None, "impatto": _impatto(rad, x),
                             "ora": ({"tipo": az[-1].get("tipo"), "cosa": lib.redigi(str(az[-1].get("cosa") or ""), 110), "esito": az[-1].get("esito")} if az and not x.get("finita") else None)})
         if u:
             ep = RQ._ts(u.get("fine") or u.get("inizio")) or 0
@@ -347,7 +357,7 @@ def scheda(rad, soglia_token=None):
         oggi = {"richieste": len(od), "modifiche": len({f for x in od for f in (x.get("file") or [])}), "errori": sum(x.get("errori") or 0 for x in od),
                 "non_provate": sum(1 for x in od if x.get("finita") and (x.get("verifica") or {}).get("stato") == "manca"), "fallite": sum(1 for x in od if (x.get("verifica") or {}).get("stato") == "fallita"),
                 "incerte": sum(1 for x in od if x.get("finita") and (x.get("verifica") or {}).get("stato") == "incerto"),
-                "da_provare": [{"domanda": (x.get("domanda") or "")[:90], "modifiche": (x.get("verifica") or {}).get("modifiche", 0), "stato": x["verifica"]["stato"]} for x in od if x.get("finita") and x.get("verifica") and x["verifica"]["stato"] in ("manca", "fallita")][:5]}
+                "da_provare": [{"domanda": (x.get("domanda") or "")[:90], "modifiche": (x.get("verifica") or {}).get("modifiche", 0), "stato": x["verifica"]["stato"], "impatto": _impatto(rad, x)} for x in od if x.get("finita") and x.get("verifica") and x["verifica"]["stato"] in ("manca", "fallita")][:5]}
         rec = [x for x in lun if (time.time() - (RQ._ts(x.get("fine") or x.get("inizio")) or 0)) < 20 * 60 and x.get("file")]   # chat attive ora: due che toccano lo stesso file si pestano i piedi
         for i_, a_ in enumerate(rec):
             ov = next(((b_, set(a_["file"]) & set(b_["file"])) for b_ in rec[i_ + 1:] if b_.get("sessione") != a_.get("sessione") and set(a_["file"]) & set(b_["file"])), None)

@@ -340,9 +340,7 @@ _jt = Path(tempfile.mkdtemp())
 for _rel, _txt in (("src/main/java/com/acme/app/security/Sec.java", "package com.acme.app.security;\nimport com.acme.app.dao.Repo;\nclass Sec{}\n"), ("src/main/java/com/acme/app/dao/Repo.java", "package com.acme.app.dao;\nclass Repo{}\n"),
                    ("src/app/auth/login.ts", "import {X} from '../shared/x.service';\n"), ("src/app/shared/x.service.ts", "export class X{}\n"), ("svc/a.py", "from svc import b\nimport os\nfrom shared import z\n"), ("svc/b.py", "x = 1\n"), ("shared/z.py", "y = 2\n")):
     (_jt / _rel).parent.mkdir(parents=True, exist_ok=True); (_jt / _rel).write_text(_txt, encoding="utf-8")
-_mc = _MPA._calcola(_jt); _liv = {m["id"]: m["livello"] for m in _mc["moduli"]}; _ar = {(a, b) for a, b, n in _mc["archi"]}
-v("mappa: livelli dedotti dai nomi (security=trasversale, dao=dati) e frecce Java", any(("dao" in k and l == "Dati") for k, l in _liv.items()) and any("security" in k and l == "Trasversale" for k, l in _liv.items()) and any(a.endswith("Sec.java") and b.endswith("Repo.java") for a, b in _ar), (_liv, _ar))
-v("mappa: Python e Angular legati dagli import", any(a.endswith("a.py") and b.endswith("b.py") for a, b in _ar) and any(a.endswith("login.ts") and b.endswith("x.service.ts") for a, b in _ar), (_liv, _ar))
-_fn = _mc["_fnodo"]; _idm = set(_liv)
-v("mappa: blocchi toccati dai file dell'agente (relativi e assoluti, fuori progetto ignorati)", len(_MPA._tocca(_jt, [{"file": ["src/app/auth/login.ts", str(_jt / "svc" / "b.py"), "../fuori.py"]}], _fn)) == 2)
+_im = _MPA.impatto(_jt, ["src/main/java/com/acme/app/dao/Repo.java", "../fuori.py"])
+v("impatto: blocco toccato (dao) e chi lo usa (security); fuori progetto ignorato", len(_im) == 1 and "Repo" in _im[0]["blocco"] and any("Sec" in x for x in _im[0]["usato_da"]), _im)
+v("impatto: un blocco che nessuno usa non genera avvisi", _MPA.impatto(_jt, ["src/main/java/com/acme/app/security/Sec.java"]) == [])
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

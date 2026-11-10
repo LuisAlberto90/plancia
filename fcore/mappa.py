@@ -4,8 +4,8 @@ In piu: quali blocchi ha toccato l'agente nell'ultima richiesta e oggi (dai file
 import os, re, time
 from collections import Counter
 from pathlib import Path
-try: from . import contesto as CX, richieste as RQ
-except ImportError: import contesto as CX, richieste as RQ
+try: from . import contesto as CX
+except ImportError: import contesto as CX
 
 PY = re.compile(r"(?m)^[ \t]*(?:from[ \t]+([A-Za-z_.][\w.]*)[ \t]+import[ \t]+([\w, \t]+)|import[ \t]+([A-Za-z_][\w., \t]*))")
 JAVA = re.compile(r"(?m)^[ \t]*import[ \t]+(?:static[ \t]+)?([\w.]+(?:\.\*)?)\s*;")
@@ -177,14 +177,16 @@ def _tocca(rad, rich, fnodo):
     return out
 
 
-def mappa(rad):
+def _dati(rad):
     k = str(rad); t = time.time()
     if k not in _C or t - _C[k][0] > 120: _C[k] = (t, _calcola(rad))
-    d = dict(_C[k][1]); fn = d.pop("_fnodo", {})
-    try: rich = [r for r in RQ.tutte(rad, 60) if r]
-    except Exception: rich = []
-    t0 = time.mktime(time.strptime(time.strftime("%Y-%m-%d"), "%Y-%m-%d"))
-    ids = {m["id"] for m in d["moduli"]}; fn = {f: m for f, m in fn.items() if m in ids}
-    d["toccati"] = {"ultima": _tocca(rad, rich[:1], fn), "oggi": _tocca(rad, [r for r in rich if (RQ._ts(r.get("inizio")) or 0) >= t0], fn)}
-    d["ultima_domanda"] = ((rich[0].get("domanda") or "").strip().split("\n")[0][:120]) if rich else ""
-    return d
+    return _C[k][1]
+
+
+def impatto(rad, files):
+    """Per i file modificati: i blocchi toccati e chi li usa (da provare insieme). Solo blocchi usati da almeno un altro; max 3."""
+    d = _dati(rad); fn = d.get("_fnodo", {}); toccati = _tocca(rad, [{"file": files or []}], fn); out = []
+    for b in toccati:
+        usa = sorted(((a, n) for a, bb, n in d["archi"] if bb == b), key=lambda x: -x[1])
+        if usa: out.append({"blocco": b, "usato_da": [a for a, _ in usa[:6]], "n": len(usa)})
+    return sorted(out, key=lambda x: -x["n"])[:3]
