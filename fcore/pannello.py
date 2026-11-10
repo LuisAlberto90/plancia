@@ -22,7 +22,9 @@ def _piano(f):
     try: d = lib.leggi(f)
     except Exception as e: return {"file": str(f), "errore": str(e)[:160], "steps": []}
     r = M.valida(d)
-    return {"file": str(f), "task": d.get("task") or Path(f).parent.name, "steps": d["steps"], "richieste": d.get("richieste", []), "validazione": r, "qualita": d.get("qualita"), "richiesta": d.get("richiesta"),
+    try: cre = d.get("creato_epoch") or Path(f).stat().st_mtime
+    except Exception: cre = 0
+    return {"file": str(f), "creato": cre, "titolo": d.get("task") or Path(f).parent.name, "task": d.get("task") or Path(f).parent.name, "steps": d["steps"], "richieste": d.get("richieste", []), "validazione": r, "qualita": d.get("qualita"), "richiesta": d.get("richiesta"),
             "critico": M.percorso_critico(d), "figli": {s["id"]: [x["id"] for x in M.figli(d["steps"], s["id"])] for s in d["steps"] if M.figli(d["steps"], s["id"])}}
 
 
@@ -92,18 +94,21 @@ def _salute(rad, piani, tasks, sess, eventi):
     return {"stato": max((x["stato"] for x in c), key=lambda s: ordine[s]), "controlli": sorted(c, key=lambda x: -ordine[x["stato"]])}
 
 
+def _rk(r): return "%s|%s" % (r.get("sessione") or "", r.get("inizio") or "")
+
+
 def stato_pannello(prompt=True, cc=None, cp=None):
     rad = lib.radice(); ts = list(T.stati_task().values()); cur = (lib.task_corrente() or {}).get("task_id")
     if cur and next((x["stato"] for x in ts if x["id"] == cur), None) in T.CHIUSE + ("ESEGUITO",): cur = None     # task gia finito: non e piu "corrente"
     sess, cercato = S.leggi_tutto(str(rad), prompt, cc, cp)
     files = lib.trova_piani(); att = lib.piano_attivo()
-    piani = [_piano(f) for f in files[:8]]
+    piani = [_piano(f) for f in files[:25]]
     rich = RQ.tutte(rad); ev_all = lib.leggi_righe("eventi.jsonl", 400)
     nota_piano = None; dalle = []
     for n, r in enumerate(rich):
         if r.get("rami"):
             st = r["rami"]; dalle.append({"file": "sessione %s" % r["sessione"], "task": ("Ultima richiesta" if n == 0 else "Richiesta delle %s" % (r["inizio"] or "")[11:16]) + " · " + (r["domanda"].splitlines()[0][:70] if r["domanda"] else ""),
-                "steps": st, "richieste": [], "validazione": M.valida({"steps": st}), "critico": M.percorso_critico({"steps": st}), "figli": {}, "live": n == 0, "storico": n > 0})
+                "steps": st, "richieste": [], "validazione": M.valida({"steps": st}), "critico": M.percorso_critico({"steps": st}), "figli": {}, "live": n == 0, "storico": n > 0, "rk": _rk(r)})
     if rich and not rich[0].get("rami") and not rich[0].get("finita"):
         nota_piano = "L'ultima richiesta (\u201c%s\u201d) e in corso: se l'agente divide il lavoro in rami (sotto-agenti) il grafo compare qui. Intanto, sotto, cosa sta facendo passo per passo." % (rich[0]["domanda"].splitlines()[0][:90] if rich[0]["domanda"] else "")
     elif rich and not rich[0].get("rami") and len(rich[0]["attivita"]) >= 4:
@@ -144,11 +149,26 @@ def stato_pannello(prompt=True, cc=None, cp=None):
     piani = dalle + piani
     if pf:
         piani = [{"file": "sessione (" + pf["fonte"] + ")", "task": "Lista dell'agente (live) · " + pf["task"], "steps": pf["steps"], "richieste": [], "validazione": M.valida({"steps": pf["steps"]}), "critico": M.percorso_critico({"steps": pf["steps"]}), "figli": {}, "live": True}] + piani
+    # ogni richiesta col suo piano: quella piu recente ha il piano "live"; le altre quello scritto mentre giravano
+    if rich:
+        for x in piani:
+            if x.get("live") and not x.get("rk"): x["rk"] = _rk(rich[0])
+        ini = [RQ._ts(r["inizio"]) or 0 for r in rich]
+        for x in piani:
+            if x.get("rk") or not x.get("creato"): continue
+            for n, r in enumerate(rich):
+                if n and ini[n] and ini[n] - 5 <= x["creato"] < (ini[n - 1] - 5 if ini[n - 1] else 9e12):
+                    if any(y.get("rk") == _rk(r) for y in piani): break
+                    az = {}
+                    for a in r["attivita"]:
+                        if a.get("passo"): az.setdefault(a["passo"], []).append(a)
+                    for s in x["steps"]: s["azioni"] = az.get(s["id"], [])
+                    x["rk"] = _rk(r); break
     eventi = lib.leggi_righe("eventi.jsonl", 40)
     sm = lib.dir_() / "STATE.md"; hl = lib.leggi_righe("handoff.jsonl", 5)
     chiusi = [t for t in ts if t["fine"]]
     ultimo = max(chiusi, key=lambda t: t["fine"]) if chiusi else None
-    rq_pub = [dict(r, risposta=r["risposta"] if prompt else "", domanda=r["domanda"] if prompt else "") for r in rich]
+    rq_pub = [dict(r, rk=_rk(r), risposta=r["risposta"] if prompt else "", domanda=r["domanda"] if prompt else "") for r in rich]
     return {"progetto": rad.name, "aggiornato": time.strftime("%Y-%m-%d %H:%M:%S"), "radice": rad.name, "corrente": cur, "modo": lib.modo(), "nota_piano": nota_piano,
             "richieste": rq_pub, "riprendere": RQ.riprendere(rich, eventi) if prompt else None,
             "piano_attivo": str(att) if att else None, "piani": piani, "task": ts,
@@ -279,7 +299,7 @@ def main(a):
                         from fcore import strumenti as ST
                     except ImportError:
                         from . import strumenti as ST
-                    r = ST.azione_proposta(q, pid, az, ag)
+                    r = ST.azione_proposta(q, pid, az, ag); PN._PROP.pop(q, None); _PAN["t"] = 0
                     os.environ["FACTORY_ROOT"] = str(rad)
                 body = json.dumps(r, ensure_ascii=False).encode()
                 self.send_response(200)

@@ -44,18 +44,24 @@ try:
         check(st and "p=" in st[-1] and "p=&" not in st[-1] + "&", "Dettagli passa il progetto: %s" % (st[-1][-80:] if st else "nessuna chiamata"))
         check(proj.name in pg.inner_text("#t"), "titolo = progetto (%s)" % pg.inner_text("#t"))
         check("Nessun piano" not in pg.inner_text("#v"), "la scheda Piano mostra un piano")
-        for tab in ("richieste", "riprendere", "salute", "strumenti", "prove", "piano"):
+        for tab in ("salute", "strumenti", "prove", "piano"):
             pg.evaluate("go(%s)" % json.dumps(tab)); pg.wait_for_timeout(900)
             txt = pg.inner_text("#v")
             check("Errore nel disegnare" not in txt and "errore_pannello" not in txt and "Traceback" not in txt and len(txt) > 20, "scheda %s si disegna" % tab)
-        pg.evaluate("go('strumenti')"); pg.wait_for_selector("text=In breve", timeout=5000)
+        pg.evaluate("go('strumenti')"); pg.wait_for_selector("text=Da decidere", timeout=5000)
         txs = pg.inner_text("#v")
         np = pg.locator("button:has-text('No, non mi serve')").count()
         if np:
             pg.locator("button:has-text('No, non mi serve')").first.click(); pg.wait_for_timeout(2500)
             check(pg.locator("button:has-text('No, non mi serve')").count() == np - 1 and "scartato" in pg.inner_text("#v"), "Strumenti: una proposta scartata sparisce e finisce tra le scartate")
             check((proj / ".factory" / "proposte.json").exists(), "Strumenti: lo scarto resta salvato nel progetto")
-        check(all(k in txs.lower() for k in ("skill", "istruzioni fisse", "proposte", "dettagli tecnici")), "Strumenti mostra skill/MCP/hook/istruzioni del progetto: " + txs[:300].replace("\n", " | "))
+        check(all(k in txs.lower() for k in ("skill", "agenti", "da decidere", "tecnico")), "Skill e agenti: sezioni Da decidere / Skill / Agenti / Tecnico: " + txs[:300].replace("\n", " | "))
+        for sez, atteso in (("skill", "una guida su un tema"), ("agenti", "collega specializzato"), ("istruzioni", "Mappa del progetto"), ("tecnico", "Dettagli tecnici")):
+            pg.evaluate("stab=%s;draw()" % json.dumps(sez)); pg.wait_for_timeout(200)
+            check(atteso.lower() in pg.inner_text("#v").lower(), "Skill e agenti: sezione %s si disegna" % sez)
+        check(pg.locator("#nav select option").count() >= 1, "menu Progetto sempre presente in alto")
+        pg.evaluate("go('piano')"); pg.wait_for_selector("select.rqsel", timeout=5000)
+        check("Quale richiesta vuoi vedere" in pg.inner_text("#v"), "Lavoro: si sceglie la richiesta da un menu")
         pg.evaluate("go('prove')"); pg.wait_for_selector("text=Verifica", timeout=5000)
         check(proj.name in pg.inner_text("#v"), "Prove dice su quale progetto")
         pg.click("button:has-text('Verifica') >> nth=0"); pg.wait_for_timeout(1500)

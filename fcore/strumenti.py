@@ -224,7 +224,7 @@ def proposte(rad, sk, ist, mc, tutte=False, ag=()):
                   "azione": {"tipo": "crea", "testo": "Tolgo dal progetto solo le parti della Plancia/Lavagna: il resto dei file resta com'e."}})
     if ag:
         p.append({"id": "agenti-revisione", "titolo": "Fai rivedere i tuoi %d agenti all'AI" % len(ag), "ambito": "solo questo progetto",
-                  "perche": "Qui sopra vedi i controlli automatici (gratis). Per un giudizio vero su ruoli, sovrapposizioni e istruzioni serve che l'agente li legga: costa qualche migliaio di token, una volta.",
+                  "perche": "Nella sezione Agenti vedi i controlli automatici (gratis). Per un giudizio vero su ruoli, sovrapposizioni e istruzioni serve che l'agente li legga: costa qualche migliaio di token, una volta.",
                   "azione": {"tipo": "prompt", "testo": "Review my custom agents: %s. For each one: what it does in one line, when it should be used, what overlaps with the others, missing limits (tools, what it must NOT do, output format), and max 3 concrete improvements with the exact text to add or remove. Then tell me if any agent is useless or missing for this project. Do not edit files: report only." % ", ".join(a["file"] for a in ag[:12])}})
     rif = _rifiutate(rad)
     for x in p: x["rifiutata"] = x["id"] in rif

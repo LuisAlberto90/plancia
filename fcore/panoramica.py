@@ -220,6 +220,22 @@ def _f(n): return "%.1fM" % (n / 1e6) if n >= 1e6 else "%.0fk" % (n / 1e3) if n 
 def _eta(s): return "%ds" % s if s < 90 else "%d min" % (s // 60) if s < 5400 else "%d ore" % (s // 3600) if s < 48 * 3600 else "%d giorni" % (s // 86400)
 
 
+_PROP = {}
+
+
+def _n_proposte(rad):
+    """Quante proposte (skill, agenti...) aspettano una risposta: ricalcolato al massimo una volta al minuto per progetto."""
+    v = _PROP.get(rad)
+    if v and time.time() - v[0] < 60: return v[1]
+    n = 0
+    try:
+        try: from . import strumenti as ST
+        except ImportError: import strumenti as ST
+        n = len(ST.tutto(rad)["proposte"]) if (Path(rad) / ".factory").is_dir() else 0
+    except Exception: pass
+    _PROP[rad] = (time.time(), n); return n
+
+
 def scheda(rad, soglia_token=None):
     """Una scheda per progetto: sessioni recenti con stato, task/piano se c'e .factory, punti di attenzione."""
     os.environ["FACTORY_ROOT"] = rad
@@ -257,7 +273,7 @@ def scheda(rad, soglia_token=None):
             a = r["attivita"][-1] if r["attivita"] else None; fine = _ts_utc(r["fine"]) or time.time(); e = int(time.time() - fine)
             pend = a and a["esito"] == "in corso" and a["tipo"] != "sotto-agente"   # un sotto-agente che gira non e un permesso
             chiede = pend and a["tipo"] in ("comando", "web") and not a.get("bg")          # in VS Code questi passano dal tuo "Allow"
-            st = "aspetta" if r["finita"] else ("permesso" if pend and (e > LAVORA_S or (chiede and e >= ATTESA_OK_S)) else ("lavora" if e < 6 * 60 else "fermo"))
+            st = "aspetta" if r["finita"] else ("permesso" if pend and e < FERMO_S and (e > LAVORA_S or (chiede and e >= ATTESA_OK_S)) else ("lavora" if e < 6 * 60 else "fermo"))
             sess.append({"fonte": r["fonte"], "id": r["sessione"], "ultimo": None, "in_sospeso": [a["tipo"]] if pend else [], "errori": r["errori"], "errore_testo": "",
                          "risposta": "", "domanda": r["domanda"], "attesa": lib.redigi(a["cosa"], 140) if pend else "", "sotto_agenti": [], "loop": "", "domanda_agente": "", "ambiente": r.get("ambiente") or [], "token_oggi": 0, "modello": "",
                          "mtime": fine, "eta": e, "eta_txt": _eta(e), "stato": st, "chiusa": e > 2 * 3600, "da_hook": True})
@@ -321,7 +337,7 @@ def scheda(rad, soglia_token=None):
             ultima = {"domanda": lib.redigi_testo(u.get("domanda") or "", 300), "fonte": u.get("fonte"), "finita": bool(u.get("finita")), "eta_txt": _eta(int(time.time() - ep)) if ep else "",
                       "quando": time.strftime("%d/%m %H:%M", time.localtime(ep)) if ep else "", "modifiche": len(u.get("file") or []), "errori": u.get("errori") or 0, "risposta": lib.redigi_testo(u.get("risposta") or "", 1200)}
     except Exception: pass
-    return {"piano": piano, "ultima": ultima, "recenti": recenti, "radice": rad, "nome": Path(rad).name, "stato": stato, "stato_txt": NOMI[stato] if aperte else "nessun agente aperto", "sessioni": aperte[:4], "chiuse": [{k: s[k] for k in ("fonte", "id", "eta_txt", "domanda", "token_oggi")} for s in chiuse[:6]],
+    return {"piano": piano, "ultima": ultima, "recenti": recenti, "proposte": _n_proposte(rad), "radice": rad, "nome": Path(rad).name, "stato": stato, "stato_txt": NOMI[stato] if aperte else "nessun agente aperto", "sessioni": aperte[:4], "chiuse": [{k: s[k] for k in ("fonte", "id", "eta_txt", "domanda", "token_oggi")} for s in chiuse[:6]],
             "processi": pr, "attenzione": [{"tipo": a, "testo": b} for a, b in att[:6]],
             "token_oggi": tok, "token_txt": _f(tok), "task": task, "plancia": (Path(rad) / ".factory").is_dir()}
 
