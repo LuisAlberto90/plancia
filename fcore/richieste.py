@@ -68,6 +68,19 @@ def _nuova(domanda, ts, fonte, sid):
             "strumenti": {}, "file": [], "comandi": [], "errori": 0, "sotto_agenti": 0, "risposta": "", "rami": None, "attivita": [], "finita": False, "_id": {}, "_passo": None, "piano_scritto": False, "ambiente": [], "righe": {}}
 
 
+PROVA = re.compile(r"(?i)\b(pytest|jest|karma|vitest|unittest|run_tests|mvnw?(\.cmd)?\b.*\b(test|verify|package|install|compile)|gradlew?(\.bat)?\s+.*\b(test|build|check)|npm\s+(run\s+)?(test|build|lint)|pnpm\s+(run\s+)?(test|build|lint)|yarn\s+(test|build|lint)|ng\s+(test|build|lint)|tsc|ruff|flake8|mypy|eslint|dotnet\s+(test|build)|cargo\s+(test|build|check)|go\s+(test|build|vet)|make\s+(test|check|build)|python\S*\s+\S*tests?\S*)\b")
+SOLO_DOC = re.compile(r"(?i)\.(md|txt|csv|png|svg|lock)$|(^|/)\.factory/")
+
+
+def _verifica(att):
+    """Dopo l'ultima modifica al codice l'agente ha provato qualcosa (test, build, lint)? Dai fatti registrati, zero token.
+    {'modifiche': quante, 'stato': 'ok' | 'fallita' | 'manca'} oppure None se non ha toccato codice."""
+    mod = [i for i, a in enumerate(att) if a.get("tipo") == "modifica" and any(not SOLO_DOC.search(f.strip()) for f in re.sub(r" \(con un comando\)$", "", str(a.get("cosa") or "")).split(", ") if f.strip())]
+    if not mod: return None
+    dopo = [a for a in att[mod[-1] + 1:] if a.get("tipo") == "comando" and a.get("prova")]
+    return {"modifiche": len(mod), "stato": ("fallita" if dopo[-1].get("esito") == "errore" else "ok") if dopo else "manca"}
+
+
 def _chiudi(r, rami):
     if r is None: return None
     r["rami"] = rami.passi() if rami.r else None
@@ -75,7 +88,10 @@ def _chiudi(r, rami):
     r["risposta"] = lib.redigi_testo(r["risposta"], 1200); r["file"] = r["file"][-12:]; r["righe"] = {k: v for k, v in list(r.get("righe", {}).items())[-12:]}; r["comandi"] = r["comandi"][-8:]
     dp = r.pop("_dal_piano", None); r["fuori_piano"] = [a for a in r["attivita"][dp:] if not a.get("passo") and a["tipo"] == "modifica"] if dp is not None else []
     r.pop("_pend", None)
-    for a in r["attivita"]: a.pop("cmd", None)
+    for a in r["attivita"]:
+        if a.get("tipo") == "comando": a["prova"] = bool(PROVA.search(a.get("cmd") or a.get("cosa") or ""))
+        a.pop("cmd", None)
+    r["verifica"] = _verifica(r["attivita"])
     r.pop("_id", None); r.pop("_passo", None); r["attivita"] = r["attivita"][-60:]
     return r
 

@@ -317,7 +317,7 @@ def scheda(rad, soglia_token=None):
     if not task and aperte:
         pf = S.piano_da_sessioni([S.leggi_sessione(f, False) for k, f in trovate[:1] if k == "claude" and os.path.getmtime(f) > lim])
         if pf: task = {"id": "(lista dell'agente)", "stato": "", "titolo": pf["task"], "fatti": sum(x["stato"] in ("FATTO",) for x in pf["steps"]), "passi": len(pf["steps"])}
-    peso = {"loop": -1, "errore": 0, "domanda": 1, "ambiente": 2, "permesso": 1, "fermo": 2, "bloccato": 2, "guardia": 3, "aspetta": 4, "token": 5}
+    peso = {"loop": -1, "errore": 0, "domanda": 1, "ambiente": 2, "permesso": 1, "fermo": 2, "bloccato": 2, "guardia": 3, "verifica": 3.5, "lunga": 3.6, "aspetta": 4, "token": 5}
     att.sort(key=lambda a: peso.get(a[0], 9))
     stato = aperte[0]["stato"] if aperte else "inattivo"
     try: piano = stato_piano(rad, aperte)
@@ -330,12 +330,23 @@ def scheda(rad, soglia_token=None):
         for x in rq3:
             ep = RQ._ts(x.get("fine") or x.get("inizio")) or 0; az = x.get("attivita") or []
             recenti.append({"domanda": lib.redigi_testo((x.get("domanda") or "").strip().split("\n")[0], 160), "fonte": x.get("fonte"), "finita": bool(x.get("finita")), "eta_txt": _eta(int(time.time() - ep)) if ep else "",
-                            "quando": time.strftime("%d/%m %H:%M", time.localtime(ep)) if ep else "", "modifiche": len(x.get("file") or []), "errori": x.get("errori") or 0, "azioni": len(az),
+                            "quando": time.strftime("%d/%m %H:%M", time.localtime(ep)) if ep else "", "modifiche": len(x.get("file") or []), "errori": x.get("errori") or 0, "azioni": len(az), "verifica": (x.get("verifica") or {}).get("stato") if x.get("finita") else None,
                             "ora": ({"tipo": az[-1].get("tipo"), "cosa": lib.redigi(str(az[-1].get("cosa") or ""), 110), "esito": az[-1].get("esito")} if az and not x.get("finita") else None)})
         if u:
             ep = RQ._ts(u.get("fine") or u.get("inizio")) or 0
             ultima = {"domanda": lib.redigi_testo(u.get("domanda") or "", 300), "fonte": u.get("fonte"), "finita": bool(u.get("finita")), "eta_txt": _eta(int(time.time() - ep)) if ep else "",
                       "quando": time.strftime("%d/%m %H:%M", time.localtime(ep)) if ep else "", "modifiche": len(u.get("file") or []), "errori": u.get("errori") or 0, "risposta": lib.redigi_testo(u.get("risposta") or "", 1200)}
+    except Exception: pass
+    try:                                                                  # buone pratiche: l'agente deve provare cio che ha cambiato; e una chat troppo lunga rende peggio
+        u0 = rq3[0] if rq3 else None
+        if u0 and u0.get("finita") and u0.get("verifica") and u0["verifica"]["stato"] in ("manca", "fallita") and (time.time() - (RQ._ts(u0.get("fine") or u0.get("inizio")) or 0)) < 3 * 86400:
+            v = u0["verifica"]
+            att.append(("verifica", ("l'ultima richiesta ha modificato %d file (%s) e dopo non ha provato nulla: nessun test, build o controllo. Chiedi: \"esegui i test e dimmi il risultato\"" if v["stato"] == "manca" else "l'ultima richiesta ha modificato %d file (%s) e l'ultima prova e fallita: non darla per buona") % (v["modifiche"], u0.get("fonte") or "agente")))
+        lun = RQ.tutte(rad, 40); s0 = (lun or [{}])[0].get("sessione")
+        n_ch = sum(1 for x in lun if s0 and x.get("sessione") == s0 and (time.time() - (RQ._ts(x.get("inizio")) or 0)) < 12 * 3600)
+        if s0 and n_ch >= 15 and (time.time() - (RQ._ts(lun[0].get("fine") or lun[0].get("inizio")) or 0)) < 6 * 3600:
+            att.append(("lunga", "questa chat ha %d richieste: piu e lunga, piu l'agente dimentica e sbaglia. Apri una chat nuova e scrivi: \"Leggi .factory/RIPRENDERE.md e continua da li\"" % n_ch))
+        att.sort(key=lambda a: peso.get(a[0], 9))
     except Exception: pass
     return {"piano": piano, "ultima": ultima, "recenti": recenti, "proposte": _n_proposte(rad), "radice": rad, "nome": Path(rad).name, "stato": stato, "stato_txt": NOMI[stato] if aperte else "nessun agente aperto", "sessioni": aperte[:4], "chiuse": [{k: s[k] for k in ("fonte", "id", "eta_txt", "domanda", "token_oggi")} for s in chiuse[:6]],
             "processi": pr, "attenzione": [{"tipo": a, "testo": b} for a, b in att[:6]],

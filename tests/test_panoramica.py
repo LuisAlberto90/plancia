@@ -309,4 +309,15 @@ _r2 = _PT.crea(str(_pj), "cand-agente-analista", ["copilot"]); _r3 = _PT.crea(st
 v("agente di sola lettura: file giusto per ognuno dei due agenti", _r2["ok"] and (_pj / ".github/agents/demo-app-analista.agent.md").exists() and _r3["ok"] and (_pj2 / ".claude/agents/demo-app-analista.md").exists(), (_r2, _r3))
 v("candidati: id sconosciuto rifiutato, niente contenuto dal browser", not _PT.crea(str(_pj), "cand-../../x", ["claude"])["ok"])
 _PT.RQ.tutte = _ln; _PT._C.clear()
+from fcore import richieste as _RV
+_a1 = [{"tipo": "modifica", "cosa": "src/A.java"}, {"tipo": "comando", "cosa": "mvn test", "prova": True, "esito": "ok"}]
+v("verifica: modifica e poi prova -> ok; senza prova -> manca; prova fallita -> fallita; solo documenti -> niente", _RV._verifica(_a1)["stato"] == "ok" and _RV._verifica(_a1[:1])["stato"] == "manca" and _RV._verifica([_a1[0], dict(_a1[1], esito="errore")])["stato"] == "fallita" and _RV._verifica([{"tipo": "modifica", "cosa": "README.md"}]) is None)
+v("verifica: riconosce test e build, non i comandi banali", all(_RV.PROVA.search(c) for c in ["mvn -q test -Dtest=A", "npm run build", "pytest -x", "ng test"]) and not _RV.PROVA.search("git status") and not _RV.PROVA.search("ls src"))
+from fcore import panoramica as _PNV
+_pv = Path(tempfile.mkdtemp()) / "prova-avvisi"; (_pv / ".git").mkdir(parents=True)
+_nw = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(time.time() - 600))
+_rv = lambda i, ver: {"domanda": "d%d" % i, "inizio": _nw, "fine": _nw, "fonte": "copilot", "sessione": "s1", "finita": True, "attivita": [], "file": [], "errori": 0, "verifica": ver}
+_orig = _RV.tutte; _RV.tutte = lambda rad, n=40: [_rv(i, {"modifiche": 2, "stato": "manca"} if i == 0 else None) for i in range(16)]
+_sv = _PNV.scheda(str(_pv)); _RV.tutte = _orig
+v("scheda: avviso 'non provato' e avviso 'chat lunga' (16 richieste)", [a["tipo"] for a in _sv["attenzione"]] == ["verifica", "lunga"] and _sv["recenti"][0]["verifica"] == "manca", _sv["attenzione"])
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)
