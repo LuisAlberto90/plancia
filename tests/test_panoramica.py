@@ -320,4 +320,16 @@ _rv = lambda i, ver: {"domanda": "d%d" % i, "inizio": _nw, "fine": _nw, "fonte":
 _orig = _RV.tutte; _RV.tutte = lambda rad, n=40: [_rv(i, {"modifiche": 2, "stato": "manca"} if i == 0 else None) for i in range(16)]
 _sv = _PNV.scheda(str(_pv)); _RV.tutte = _orig
 v("scheda: avviso 'non provato' e avviso 'chat lunga' (16 richieste)", [a["tipo"] for a in _sv["attenzione"]] == ["verifica", "lunga"] and _sv["recenti"][0]["verifica"] == "manca", _sv["attenzione"])
+_rc = lambda i, sid, f: {"domanda": "d", "inizio": _nw, "fine": _nw, "fonte": ("copilot" if sid == "a" else "claude"), "sessione": sid, "finita": False, "attivita": [], "file": f, "errori": 0}
+_RV.tutte = lambda rad, n=40: [_rc(0, "a", ["src/A.java", "x.py"]), _rc(1, "b", ["src/A.java"])]
+_sc2 = _PNV.scheda(str(_pv)); _RV.tutte = _orig
+v("scheda: due chat sullo stesso file -> avviso di conflitto", any(a["tipo"] == "conflitto" and "src/A.java" in a["testo"] for a in _sc2["attenzione"]), _sc2["attenzione"])
+from fcore import pannello as _PA
+_pl = {"file": str(_pv / ".factory" / "piani" / "x" / "piano.json"), "task": "Aggiornare plugin", "validazione": {"valido": False, "anomalie": [{"testo": "passo senza descrizione", "passo": "A", "codice": "X", "suggerimento": ""}]}, "steps": [{"stato": "FATTO"}]}
+_sa = _PA._salute(_pv, [_pl], [], [1], []); _ck = [c for c in _sa["controlli"] if c["nome"].startswith("Piano")]
+v("salute: piano finito con anomalia -> solo informazione, non KO", _ck and _ck[0]["stato"] == "INFO" and "passo senza descrizione" in _ck[0]["dettaglio"] and _sa["stato"] != "KO", _ck)
+_pl["steps"] = [{"stato": "IN_CORSO"}]; _sb = _PA._salute(_pv, [_pl], [], [1], [])
+v("salute: piano ancora aperto con anomalia -> KO", any(c["nome"].startswith("Piano") and c["stato"] == "KO" for c in _sb["controlli"]))
+_lv = _PA._livello(_pv, False, None, "plancia", True)
+v("livello: progetto vuoto = 0 di 4, prossimo passo = guardie; con tutto il livello 1 sale", _lv["n"] == 0 and "Guardie" in _lv["prossimo"]["testo"] and _PA._livello(_pv, True, 1, "plancia", True)["n"] >= 1, _lv)
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

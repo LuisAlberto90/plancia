@@ -317,7 +317,7 @@ def scheda(rad, soglia_token=None):
     if not task and aperte:
         pf = S.piano_da_sessioni([S.leggi_sessione(f, False) for k, f in trovate[:1] if k == "claude" and os.path.getmtime(f) > lim])
         if pf: task = {"id": "(lista dell'agente)", "stato": "", "titolo": pf["task"], "fatti": sum(x["stato"] in ("FATTO",) for x in pf["steps"]), "passi": len(pf["steps"])}
-    peso = {"loop": -1, "errore": 0, "domanda": 1, "ambiente": 2, "permesso": 1, "fermo": 2, "bloccato": 2, "guardia": 3, "verifica": 3.5, "lunga": 3.6, "aspetta": 4, "token": 5}
+    peso = {"loop": -1, "conflitto": 0.5, "errore": 0, "domanda": 1, "ambiente": 2, "permesso": 1, "fermo": 2, "bloccato": 2, "guardia": 3, "verifica": 3.5, "lunga": 3.6, "aspetta": 4, "token": 5}
     att.sort(key=lambda a: peso.get(a[0], 9))
     stato = aperte[0]["stato"] if aperte else "inattivo"
     try: piano = stato_piano(rad, aperte)
@@ -343,6 +343,12 @@ def scheda(rad, soglia_token=None):
             v = u0["verifica"]
             att.append(("verifica", ("l'ultima richiesta ha modificato %d file (%s) e dopo non ha provato nulla: nessun test, build o controllo. Chiedi: \"esegui i test e dimmi il risultato\"" if v["stato"] == "manca" else "l'ultima richiesta ha modificato %d file (%s) e l'ultima prova e fallita: non darla per buona") % (v["modifiche"], u0.get("fonte") or "agente")))
         lun = RQ.tutte(rad, 40); s0 = (lun or [{}])[0].get("sessione")
+        rec = [x for x in lun if (time.time() - (RQ._ts(x.get("fine") or x.get("inizio")) or 0)) < 20 * 60 and x.get("file")]   # chat attive ora: due che toccano lo stesso file si pestano i piedi
+        for i_, a_ in enumerate(rec):
+            ov = next(((b_, set(a_["file"]) & set(b_["file"])) for b_ in rec[i_ + 1:] if b_.get("sessione") != a_.get("sessione") and set(a_["file"]) & set(b_["file"])), None)
+            if ov:
+                att.append(("conflitto", "due chat (%s e %s) stanno modificando lo stesso file: %s. Una puo sovrascrivere l'altra: lascia finire la prima, oppure lavora su una copia separata (git worktree)" % (a_.get("fonte") or "agente", ov[0].get("fonte") or "agente", ", ".join(sorted(ov[1])[:2]))))
+                break
         n_ch = sum(1 for x in lun if s0 and x.get("sessione") == s0 and (time.time() - (RQ._ts(x.get("inizio")) or 0)) < 12 * 3600)
         if s0 and n_ch >= 15 and (time.time() - (RQ._ts(lun[0].get("fine") or lun[0].get("inizio")) or 0)) < 6 * 3600:
             att.append(("lunga", "questa chat ha %d richieste: piu e lunga, piu l'agente dimentica e sbaglia. Apri una chat nuova e scrivi: \"Leggi .factory/RIPRENDERE.md e continua da li\"" % n_ch))

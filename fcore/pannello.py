@@ -87,11 +87,47 @@ def _salute(rad, piani, tasks, sess, eventi):
                    " ; ".join('%s task chiudi %s abbandonato "vecchio"' % (cmd, x) for x in aperti[:3]))
     for p in [x for x in piani if not x.get("live") and not x.get("storico")][:3]:
         if p.get("errore"): add("Piano " + Path(p["file"]).parent.name, "KO", p["errore"], "il piano non si legge", "correggi il file indicato")
-        elif not p["validazione"]["valido"]: add("Piano " + p["task"][:50], "KO", "%d anomalie" % len(p["validazione"]["anomalie"]), "il piano ha errori di struttura", cmd + " piano valida")
+        elif not p["validazione"]["valido"]:
+            an = p["validazione"]["anomalie"]; primo = (an[0].get("testo") or an[0].get("messaggio") or "") if an and isinstance(an[0], dict) else (str(an[0]) if an else "")
+            chiuso = bool(p.get("steps")) and all(x.get("stato") in ("FATTO", "VERIFICATO", "NON_NECESSARIO") for x in p["steps"])
+            if chiuso: add("Piano " + p["task"][:50], "INFO", "finito, con %d anomalia di scrittura%s" % (len(an), (": " + primo[:90]) if primo else ""), "il lavoro e concluso: l'anomalia riguarda solo come e scritto il piano e non blocca niente", "se non ti serve, toglilo da Lavoro (🗑 Togli questo piano)")
+            else: add("Piano " + p["task"][:50], "KO", "%d anomalie%s" % (len(an), (": " + primo[:90]) if primo else ""), "il piano ha errori di struttura e l'agente ci lavora ancora", cmd + " piano valida")
     neg = [e for e in eventi if e.get("tipo") == "guardia_negata" and str(e.get("ts", ""))[:10] == time.strftime("%Y-%m-%d")]
     if neg: add("Azioni bloccate oggi", "INFO", "%d (ultima: %s)" % (len(neg), (neg[-1].get("messaggio") or "").split(". Chiedi")[0][:80]), "la guardia ha fatto il suo lavoro: non serve fare niente, salvo che l'azione fosse voluta", "se era voluta: falla tu, oppure modifica .factory/policy.json")
     ordine = {"OK": 0, "INFO": 0, "ATTENZIONE": 1, "KO": 2}
-    return {"stato": max((x["stato"] for x in c), key=lambda s: ordine[s]), "controlli": sorted(c, key=lambda x: -ordine[x["stato"]])}
+    try: lv = _livello(rad, bool(hk), gg, cmd, not any(x["stato"] == "KO" for x in c))
+    except Exception: lv = None
+    return {"stato": max((x["stato"] for x in c), key=lambda s: ordine[s]), "controlli": sorted(c, key=lambda x: -ordine[x["stato"]]), "livello": lv}
+
+
+NOMI_LIVELLO = ["Da preparare", "Preparato", "Sa lavorare qui", "Controllato", "Su misura"]
+
+
+def _livello(rad, hook_ok, gg, cmd, piani_ok):
+    """Quanto e ben preparato il progetto per lavorare con un agente, in 4 livelli. Solo fatti verificabili, zero token."""
+    try:
+        from fcore import strumenti as ST_, richieste as RQ_
+    except ImportError:
+        from . import strumenti as ST_, richieste as RQ_
+    st = ST_.tutto(str(rad)); sk = st["skill"]
+    qui = [x for x in sk if x["ambito"].startswith("solo") and x["nome"] != "plancia-metodo"]; ist = sum(i["token"] for i in st["istruzioni"] if i["sempre"])
+    cm = [r for r in RQ_.tutte(str(rad), 30) if r.get("finita") and r.get("verifica")]; okv = sum(1 for r in cm if r["verifica"]["stato"] == "ok")
+    prova_ok = len(cm) >= 3 and okv / float(len(cm)) >= 0.7
+    cr = [(1, "Guardie attive (la Plancia vede e protegge)", hook_ok, "riapri l'agente dopo l'installazione"),
+          (1, "Mappa del progetto fatta", gg is not None, cmd + " contesto --scrivi"),
+          (2, "Metodo della Plancia installato", any(x["nome"] == "plancia-metodo" for x in sk), "Skill e agenti → Da decidere"),
+          (2, "Almeno una skill del progetto (comandi, test, convenzioni)", bool(qui), "Skill e agenti → Da decidere"),
+          (3, "Istruzioni fisse leggere (sotto circa 3000 token)", ist <= 3000, "Skill e agenti → Istruzioni e mappa"),
+          (3, "L'agente prova quello che cambia (almeno 7 richieste su 10)" + ("" if len(cm) >= 3 else " · ancora pochi dati: servono 3 richieste con modifiche"), prova_ok, "chiedigli: \"dopo ogni modifica lancia i test\""),
+          (4, "Un agente personalizzato per questo progetto", any(a["ambito"].startswith("solo") for a in st["agenti"]), "Skill e agenti → Da decidere"),
+          (4, "Nessuna proposta in sospeso", not st["proposte"], "Skill e agenti → Da decidere"),
+          (4, "Nessun piano in errore", piani_ok, "Salute, qui sopra")]
+    n = 0
+    for liv in (1, 2, 3, 4):
+        if all(x[2] for x in cr if x[0] == liv): n = liv
+        else: break
+    crit = [{"liv": a, "testo": b, "ok": bool(c), "come": d} for a, b, c, d in cr]
+    return {"n": n, "di": 4, "nome": NOMI_LIVELLO[n], "criteri": crit, "prossimo": next((x for x in crit if not x["ok"]), None)}
 
 
 def _cestina_piano(prog, file):
