@@ -345,7 +345,9 @@ def scheda(rad, soglia_token=None):
         lun = RQ.tutte(rad, 60); s0 = (lun or [{}])[0].get("sessione")
         t0 = time.mktime(time.strptime(time.strftime("%Y-%m-%d"), "%Y-%m-%d")); od = [x for x in lun if (RQ._ts(x.get("inizio")) or 0) >= t0]
         oggi = {"richieste": len(od), "modifiche": len({f for x in od for f in (x.get("file") or [])}), "errori": sum(x.get("errori") or 0 for x in od),
-                "non_provate": sum(1 for x in od if x.get("finita") and (x.get("verifica") or {}).get("stato") == "manca"), "fallite": sum(1 for x in od if (x.get("verifica") or {}).get("stato") == "fallita")}
+                "non_provate": sum(1 for x in od if x.get("finita") and (x.get("verifica") or {}).get("stato") == "manca"), "fallite": sum(1 for x in od if (x.get("verifica") or {}).get("stato") == "fallita"),
+                "incerte": sum(1 for x in od if x.get("finita") and (x.get("verifica") or {}).get("stato") == "incerto"),
+                "da_provare": [{"domanda": (x.get("domanda") or "")[:90], "modifiche": (x.get("verifica") or {}).get("modifiche", 0), "stato": x["verifica"]["stato"]} for x in od if x.get("finita") and x.get("verifica") and x["verifica"]["stato"] in ("manca", "fallita")][:5]}
         rec = [x for x in lun if (time.time() - (RQ._ts(x.get("fine") or x.get("inizio")) or 0)) < 20 * 60 and x.get("file")]   # chat attive ora: due che toccano lo stesso file si pestano i piedi
         for i_, a_ in enumerate(rec):
             ov = next(((b_, set(a_["file"]) & set(b_["file"])) for b_ in rec[i_ + 1:] if b_.get("sessione") != a_.get("sessione") and set(a_["file"]) & set(b_["file"])), None)

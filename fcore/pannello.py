@@ -63,9 +63,20 @@ def _salute(rad, piani, tasks, sess, eventi):
         s = (rad / ".claude" / "settings.json").read_text(encoding="utf-8") if (rad / ".claude" / "settings.json").exists() else ""
         a_ = (rad / "AGENTS.md").read_text(encoding="utf-8") if (rad / "AGENTS.md").exists() else ""
         qui = str(Path(__file__).resolve().parent.parent / "factory.py")
-        vecchi = (" hook" in s and qui.replace("\\", "\\\\") not in s and qui not in s and "plancia hook" not in s) or "lavagna:inizio" in a_
-        if vecchi: add("Collegamento al progetto", "ATTENZIONE", "hook o regola puntano a una versione o cartella vecchia (es. la vecchia Lavagna)",
-                       "le guardie e il piano obbligatorio usano ancora il programma vecchio", "doppio clic su Installa-in-un-progetto e scegli questo progetto")
+        vecchia_regola = "lavagna:inizio" in a_
+        trovati = [m.replace("\\\\", "\\") for m in re.findall(r"([A-Za-z]:[^\"' ]*?factory\.py|/[^\"' ]*?factory\.py)", s)]
+        stessa = lambda x: os.path.normcase(os.path.normpath(x)) == os.path.normcase(os.path.normpath(qui))
+        altra = [x for x in trovati if not stessa(x)]
+        mancante = [x for x in altra if not os.path.exists(x)]
+        if vecchia_regola:
+            add("Collegamento al progetto", "ATTENZIONE", "il file AGENTS.md contiene ancora la regola della vecchia Lavagna (il nome di prima di Plancia)",
+                "l'agente riceve istruzioni vecchie e può cercare comandi che non esistono più", "nella cartella del progetto: " + cmd + " init --scrivi (sostituisce la regola, non tocca il resto)")
+        elif mancante:
+            add("Collegamento al progetto", "ATTENZIONE", "le guardie in .claude/settings.json puntano a un file che non esiste più: " + mancante[0],
+                "quelle guardie non partono: l'agente lavora senza controlli e senza che la Plancia lo veda", "nella cartella del progetto: " + cmd + " init --scrivi (aggiorna il percorso)")
+        elif altra:
+            add("Collegamento al progetto", "INFO", "le guardie usano un'altra copia di Plancia, ancora presente: " + altra[0],
+                "funziona, ma se aggiorni solo questa copia il progetto resta con quella vecchia", "per allinearle: " + cmd + " init --scrivi nella cartella del progetto")
     except Exception: pass
     cf = lib.dir_() / "CONTESTO.md"; gg = (time.time() - cf.stat().st_mtime) / 86400 if cf.exists() else None
     if gg is None: add("Mappa del progetto", "ATTENZIONE", "manca .factory/CONTESTO.md", "senza mappa l'agente esplora il codice a ogni sessione e spende piu token", cmd + " contesto --scrivi")
@@ -91,7 +102,7 @@ def _salute(rad, piani, tasks, sess, eventi):
             an = p["validazione"]["anomalie"]; primo = (an[0].get("testo") or an[0].get("messaggio") or "") if an and isinstance(an[0], dict) else (str(an[0]) if an else "")
             chiuso = bool(p.get("steps")) and all(x.get("stato") in ("FATTO", "VERIFICATO", "NON_NECESSARIO") for x in p["steps"])
             if chiuso: add("Piano " + p["task"][:50], "INFO", "finito, con %d anomalia di scrittura%s" % (len(an), (": " + primo[:90]) if primo else ""), "il lavoro e concluso: l'anomalia riguarda solo come e scritto il piano e non blocca niente", "se non ti serve, toglilo da Lavoro (🗑 Togli questo piano)")
-            else: add("Piano " + p["task"][:50], "KO", "%d anomalie%s" % (len(an), (": " + primo[:90]) if primo else ""), "il piano ha errori di struttura e l'agente ci lavora ancora", cmd + " piano valida")
+            else: add("Piano " + p["task"][:50], "KO", "%d anomalie%s" % (len(an), (": " + primo[:90]) if primo else ""), "il piano ha errori di struttura (per esempio un passo segnato FATTO mentre quello da cui dipende è ancora IN CORSO) e l'agente ci lavora ancora", "chiedi all'agente: \"allinea lo stato dei passi del piano\"; se il lavoro è già chiuso, usa 🗑 Togli questo piano in Lavoro")
     neg = [e for e in eventi if e.get("tipo") == "guardia_negata" and str(e.get("ts", ""))[:10] == time.strftime("%Y-%m-%d")]
     if neg: add("Azioni bloccate oggi", "INFO", "%d (ultima: %s)" % (len(neg), (neg[-1].get("messaggio") or "").split(". Chiedi")[0][:80]), "la guardia ha fatto il suo lavoro: non serve fare niente, salvo che l'azione fosse voluta", "se era voluta: falla tu, oppure modifica .factory/policy.json")
     ordine = {"OK": 0, "INFO": 0, "ATTENZIONE": 1, "KO": 2}

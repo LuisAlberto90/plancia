@@ -360,10 +360,11 @@ def skill_progetto(scrivi=False, cartella=".github"):
     cm = [(k, v) for k, v in cm if re.search(r"\b(build|test|avvio|start|dipendenze|python)\b", k)]
     if not cm: print("Nessun comando di build/test nella mappa."); return 2
     nome = re.sub(r"[^a-z0-9]+", "-", rad.name.lower()).strip("-")[:40] + "-build-test"
-    righe = ["---", "name: %s" % nome, "description: Exact build, test and run commands for %s (verified paths, including tools outside PATH). Use before running any build or test in this project." % rad.name, "---", "",
+    righe = ["---", "name: %s" % nome, "description: Exact build, test and run commands for %s (verified paths, including tools outside PATH). Use before running any build or test in this project, and after every code change to verify it." % rad.name, "---", "",
              "# Build and test in %s" % rad.name, "", "Use these commands as they are; do not search for Maven/JDK/npm again. If one fails, report the exact error.", ""]
     righe += ["- %s: `%s`" % (k.strip(), v) for k, v in cm]
-    righe += ["", "Run the narrowest test first (one class), the full suite only at the end. Filter long output for FAIL/ERROR/summary lines."]
+    righe += ["", "Run the narrowest test first (one class), the full suite only at the end. Filter long output for FAIL/ERROR/summary lines.",
+              "", "After EVERY code change, run the narrowest relevant test or build and report the result (passed / failed, with the exact error) before saying the task is done. Never claim a change works without running it."]
     f = rad / cartella / "skills" / nome / "SKILL.md"
     if not scrivi: print("Scriverei %s:\n\n%s\n\n(aggiungi --scrivi)" % (f, "\n".join(righe))); return 0
     f.parent.mkdir(parents=True, exist_ok=True); f.write_text("\n".join(righe) + "\n", encoding="utf-8")

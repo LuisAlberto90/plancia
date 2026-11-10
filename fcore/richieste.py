@@ -77,8 +77,9 @@ def _verifica(att):
     {'modifiche': quante, 'stato': 'ok' | 'fallita' | 'manca'} oppure None se non ha toccato codice."""
     mod = [i for i, a in enumerate(att) if a.get("tipo") == "modifica" and any(not SOLO_DOC.search(f.strip()) for f in re.sub(r" \(con un comando\)$", "", str(a.get("cosa") or "")).split(", ") if f.strip())]
     if not mod: return None
-    dopo = [a for a in att[mod[-1] + 1:] if a.get("tipo") == "comando" and a.get("prova")]
-    return {"modifiche": len(mod), "stato": ("fallita" if dopo[-1].get("esito") == "errore" else "ok") if dopo else "manca"}
+    cmd = [a for a in att[mod[-1] + 1:] if a.get("tipo") == "comando"]; dopo = [a for a in cmd if a.get("prova")]
+    dubbio = [a for a in cmd if str(a.get("cosa") or "").endswith("…") and not re.match(r"(?i)^\s*(git|ls|dir|cd|cat|type|echo|get-content|get-childitem)\b", str(a.get("cosa") or ""))]   # comando accorciato: non si vede cosa lanciava
+    return {"modifiche": len(mod), "stato": ("fallita" if dopo[-1].get("esito") == "errore" else "ok") if dopo else ("incerto" if dubbio else "manca")}
 
 
 def _chiudi(r, rami):
@@ -89,7 +90,7 @@ def _chiudi(r, rami):
     dp = r.pop("_dal_piano", None); r["fuori_piano"] = [a for a in r["attivita"][dp:] if not a.get("passo") and a["tipo"] == "modifica"] if dp is not None else []
     r.pop("_pend", None)
     for a in r["attivita"]:
-        if a.get("tipo") == "comando": a["prova"] = bool(PROVA.search(a.get("cmd") or a.get("cosa") or ""))
+        if a.get("tipo") == "comando": a["prova"] = bool(a.get("prova")) or bool(PROVA.search(a.get("cmd") or a.get("cosa") or ""))
         a.pop("cmd", None)
     r["verifica"] = _verifica(r["attivita"])
     r.pop("_id", None); r.pop("_passo", None); r["attivita"] = r["attivita"][-60:]
@@ -313,7 +314,7 @@ def da_eventi(eventi):
             if tp == "hook:pretooluse":
                 r["_pend"] = {"tipo": kind, "cosa": cosa, "esito": "in corso", "ts": ts, "passo": r["_passo"]}; continue
             r.pop("_pend", None); r["strumenti"][n] = r["strumenti"].get(n, 0) + 1
-            r["attivita"].append({"tipo": kind, "cosa": cosa, "esito": e.get("esito") or "ok", "ts": ts, "passo": r["_passo"]}); r["finita"] = False
+            r["attivita"].append({"tipo": kind, "cosa": cosa, "esito": e.get("esito") or "ok", "ts": ts, "passo": r["_passo"], "prova": bool(e.get("prova"))}); r["finita"] = False
             if e.get("esito") == "errore": r["errori"] += 1
             for x in e.get("ambiente") or []:
                 if list(x) not in r["ambiente"]: r["ambiente"].append(list(x))

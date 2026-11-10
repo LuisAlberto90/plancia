@@ -95,7 +95,7 @@ def main(a):
             return 0
         fonte = _fonte(d)
         strum = d.get("tool_name") or d.get("toolName"); arg = d.get("tool_input") if "tool_input" in d else d.get("toolArgs")
-        cosa = esito = None; amb = None
+        cosa = esito = None; amb = None; prova = False
         if strum and str(ev).lower() in ("pretooluse", "posttooluse"):
             from fcore import richieste as RQ
             if isinstance(arg, str):
@@ -103,6 +103,7 @@ def main(a):
                 except Exception: arg = {"command": arg}
             tp, cosa = RQ._azione(strum, arg if isinstance(arg, dict) else {}, str(Path(cwd)))
             cosa = "%s|%s" % (tp, cosa) if tp else None
+            prova = bool(tp == "comando" and isinstance(arg, dict) and RQ.PROVA.search(str(arg.get("command") or arg.get("cmd") or "")))   # dal comando intero: nel registro resta accorciato
             if str(ev).lower() == "posttooluse":
                 rs = d.get("tool_response") or d.get("toolResult") or {}
                 esito = "errore" if isinstance(rs, dict) and (rs.get("is_error") or rs.get("error") or rs.get("success") is False or rs.get("resultType") in ("failure", "error")) else "ok"
@@ -117,7 +118,7 @@ def main(a):
                 if abs(_t.time() - _t.mktime(_t.strptime(ult.get("ts", ""), "%Y-%m-%dT%H:%M:%S"))) <= 2: return 0
             except Exception: pass
         store.evento("hook:" + str(ev), "hook", sessione=str(d.get("session_id") or d.get("sessionId") or "")[:12], fonte=fonte,
-                     strumento=strum, cosa=cosa, esito=esito, ambiente=[list(x) for x in amb] if amb else None, testo=store.redigi(d.get("prompt") or d.get("userPrompt") or "", 300) or None)
+                     strumento=strum, cosa=cosa, esito=esito, prova=True if prova else None, ambiente=[list(x) for x in amb] if amb else None, testo=store.redigi(d.get("prompt") or d.get("userPrompt") or "", 300) or None)
         if ev == "UserPromptSubmit" and store.modo() == "governata":
             from fcore import task
             cur = (store.task_corrente() or {}).get("task_id"); t = task.stati_task().get(cur) if cur else None
