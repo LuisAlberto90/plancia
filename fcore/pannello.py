@@ -59,24 +59,12 @@ def _salute(rad, piani, tasks, sess, eventi):
     hk = [e for e in eventi if e.get("origine") == "hook"]
     add("Guardie e osservazione (hook)", "OK" if hk else "ATTENZIONE", ("attive, ultimo segnale %s" % hk[-1].get("ts", "")[11:16]) if hk else "nessun segnale dagli hook",
         "" if hk else "senza hook le guardie non bloccano niente e la Plancia non sa se un agente aspetta un permesso", "" if hk else cmd + " init --scrivi, poi riapri l'agente")
-    try:                                                                # hook o regola scritti da una versione/cartella diversa: vanno rigenerati
-        s = (rad / ".claude" / "settings.json").read_text(encoding="utf-8") if (rad / ".claude" / "settings.json").exists() else ""
-        a_ = (rad / "AGENTS.md").read_text(encoding="utf-8") if (rad / "AGENTS.md").exists() else ""
-        qui = str(Path(__file__).resolve().parent.parent / "factory.py")
-        vecchia_regola = "lavagna:inizio" in a_
-        trovati = [m.replace("\\\\", "\\") for m in re.findall(r"([A-Za-z]:[^\"' ]*?factory\.py|/[^\"' ]*?factory\.py)", s)]
-        stessa = lambda x: os.path.normcase(os.path.normpath(x)) == os.path.normcase(os.path.normpath(qui))
-        altra = [x for x in trovati if not stessa(x)]
-        mancante = [x for x in altra if not os.path.exists(x)]
-        if vecchia_regola:
-            add("Collegamento al progetto", "ATTENZIONE", "il file AGENTS.md contiene ancora la regola della vecchia Lavagna (il nome di prima di Plancia)",
-                "l'agente riceve istruzioni vecchie e può cercare comandi che non esistono più", "nella cartella del progetto: " + cmd + " init --scrivi (sostituisce la regola, non tocca il resto)")
-        elif mancante:
-            add("Collegamento al progetto", "ATTENZIONE", "le guardie in .claude/settings.json puntano a un file che non esiste più: " + mancante[0],
-                "quelle guardie non partono: l'agente lavora senza controlli e senza che la Plancia lo veda", "nella cartella del progetto: " + cmd + " init --scrivi (aggiorna il percorso)")
-        elif altra:
-            add("Collegamento al progetto", "INFO", "le guardie usano un'altra copia di Plancia, ancora presente: " + altra[0],
-                "funziona, ma se aggiorni solo questa copia il progetto resta con quella vecchia", "per allinearle: " + cmd + " init --scrivi nella cartella del progetto")
+    try:                                                                # installazione classica o della vecchia Lavagna dentro il progetto, mentre c'e il plugin
+        from fcore import strumenti as ST_
+        resto = ST_._da_scollegare(rad)
+        if resto and any(x["dove"].startswith("plugin") for x in ST_.skill(str(rad))):
+            add("Collegamento al progetto", "ATTENZIONE", "il progetto ha ancora l'installazione vecchia: " + "; ".join(resto[:3]),
+                "col plugin non serve piu e puo puntare a programmi che non esistono: allora la Plancia non vede cosa fa l'agente", "Skill e agenti → «Questo progetto ha ancora la vecchia installazione» → Sì, fallo tu")
     except Exception: pass
     cf = lib.dir_() / "CONTESTO.md"; gg = (time.time() - cf.stat().st_mtime) / 86400 if cf.exists() else None
     if gg is None: add("Mappa del progetto", "ATTENZIONE", "manca .factory/CONTESTO.md", "senza mappa l'agente esplora il codice a ogni sessione e spende piu token", cmd + " contesto --scrivi")

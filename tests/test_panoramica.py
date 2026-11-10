@@ -343,4 +343,19 @@ for _rel, _txt in (("src/main/java/com/acme/app/security/Sec.java", "package com
 _im = _MPA.impatto(_jt, ["src/main/java/com/acme/app/dao/Repo.java", "../fuori.py"])
 v("impatto: blocco toccato (dao) e chi lo usa (security); fuori progetto ignorato", len(_im) == 1 and "Repo" in _im[0]["blocco"] and any("Sec" in x for x in _im[0]["usato_da"]), _im)
 v("impatto: un blocco che nessuno usa non genera avvisi", _MPA.impatto(_jt, ["src/main/java/com/acme/app/security/Sec.java"]) == [])
+from fcore import strumenti as _S9
+_pp = Path(tempfile.mkdtemp()); (_pp / ".git" / "info").mkdir(parents=True)
+_plug = lambda f: {"nome": "plancia-metodo", "dove": "plugin x", "file": f, "descrizione": ""}
+_ids9 = lambda sk: [x["id"] for x in _S9.proposte(str(_pp), sk, {}, [], tutte=True)]
+v("proposte: copie del plugin in piu strumenti (VS Code + Copilot CLI) non sono un doppione", "doppia-plancia-metodo" not in _ids9([_plug("/a/plancia-metodo/SKILL.md"), _plug("/b/plancia-metodo/SKILL.md")]))
+_man = Path(tempfile.mkdtemp()) / "plancia-metodo"; _man.mkdir(); (_man / "SKILL.md").write_text("x", encoding="utf-8")
+_skl = [_plug("/a/plancia-metodo/SKILL.md"), {"nome": "plancia-metodo", "dove": "personale", "file": str(_man / "SKILL.md"), "descrizione": ""}]
+v("proposte: copia a mano + plugin -> doppione, il bottone toglie davvero la copia a mano", "doppia-plancia-metodo" in _ids9(_skl), _ids9(_skl))
+_o9 = _S9.skill; _S9.skill = lambda r: _skl
+_r9 = _S9.azione_proposta(_pp, "doppia-plancia-metodo", "crea"); _S9.skill = _o9
+v("doppione: dopo il clic la copia a mano non c'e piu; un secondo clic dice che non c'e nulla", _r9["ok"] and not _man.exists(), _r9)
+(_pp / ".github" / "hooks").mkdir(parents=True); (_pp / ".github" / "hooks" / "plancia.json").write_text("{}", encoding="utf-8")
+v("vecchia installazione: compare solo se c'e davvero qualcosa da togliere", "passa-al-plugin" in _ids9([_plug("/a/plancia-metodo/SKILL.md")]))
+_r8 = _S9.azione_proposta(_pp, "passa-al-plugin", "crea")
+v("vecchia installazione: dopo il clic la proposta sparisce e non ricompare", _r8["ok"] and "passa-al-plugin" not in _ids9([_plug("/a/plancia-metodo/SKILL.md")]) and not _S9.azione_proposta(_pp, "passa-al-plugin", "crea")["ok"], _r8)
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

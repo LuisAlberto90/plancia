@@ -206,11 +206,14 @@ def proposte(rad, sk, ist, mc, tutte=False, ag=()):
     doppie = sorted({n for n in nomi if nomi.count(n) > 1})
     for n in doppie:
         dov = [s["file"] for s in sk if s["nome"] == n]
-        if n == "plancia-metodo" and any(s["dove"].startswith("plugin") for s in sk if s["nome"] == n):
-            p.append({"id": "doppia-plancia-metodo", "titolo": "Le istruzioni della Plancia per l'agente ci sono due volte", "ambito": "tutti i progetti",
-                      "perche": "La Plancia e una sola. Sono doppie solo le sue istruzioni per l'agente (la skill plancia-metodo): una arriva col plugin e si aggiorna da sola, l'altra e una copia vecchia rimasta in %s da prima del plugin. L'agente potrebbe seguire quella vecchia: conviene toglierla." % ", ".join(sorted({s["file"].replace(str(Path.home()), "~").rsplit("plancia-metodo", 1)[0] for s in sk if s["nome"] == "plancia-metodo" and not s["dove"].startswith("plugin")})),
-                      "azione": {"tipo": "crea", "testo": "Tengo quella del plugin e tolgo le copie installate a mano."}})
-            continue
+        if n == "plancia-metodo":
+            manuali = [s for s in sk if s["nome"] == n and not s["dove"].startswith("plugin")]
+            if manuali and any(s["dove"].startswith("plugin") for s in sk if s["nome"] == n):
+                cart = sorted({str(Path(s["file"]).parent).replace(str(Path.home()), "~") for s in manuali})
+                p.append({"id": "doppia-plancia-metodo", "titolo": "Le istruzioni della Plancia per l'agente ci sono due volte", "ambito": "tutti i progetti",
+                          "perche": "Una copia arriva col plugin e si aggiorna da sola; l'altra e una copia vecchia installata a mano in %s. L'agente potrebbe seguire quella vecchia: conviene toglierla." % ", ".join(cart),
+                          "azione": {"tipo": "crea", "testo": "Tengo quella del plugin e tolgo la copia installata a mano."}})
+            continue                                                      # piu copie dello stesso plugin (es. VS Code e Copilot CLI): ognuno usa la sua, non e un problema
         p.append({"id": "doppia-" + _slug(n), "titolo": "La skill \u201c%s\u201d c'e due volte" % n, "ambito": "tutti i progetti",
                   "perche": "Con due copie l'agente non sa quale usare e puo seguire quella vecchia.",
                   "azione": {"tipo": "info", "testo": "Tieni una sola copia e cancella l'altra cartella:\n" + "\n".join(dov)}})
@@ -240,11 +243,11 @@ def proposte(rad, sk, ist, mc, tutte=False, ag=()):
         p.append({"id": "skill-angular", "titolo": "Come si costruisce e si prova il frontend Angular", "ambito": "solo questo progetto",
                   "perche": "Evita che l'agente provi comandi npm a caso o rompa la configurazione dei test.",
                   "azione": {"tipo": "prompt", "testo": "Create a project skill at <skills dir>/%s-angular/SKILL.md, where <skills dir> is .github/skills if you are GitHub Copilot or .claude/skills if you are Claude Code (then add that folder to .git/info/exclude). Read package.json, angular.json and the test config (karma/jest) and write in max 40 lines: how to install, build, serve and test, which test runner and how specs are written here, known pitfalls. Only facts you saw. Plan first." % _slug(nome_p)}})
-    clas = (r / ".github" / "hooks" / "plancia.json").exists() or (r / ".github" / "hooks" / "lavagna.json").exists() or "plancia:inizio" in _leggi(r / "AGENTS.md") or "lavagna:inizio" in _leggi(r / "AGENTS.md")
+    clas = _da_scollegare(r)
     if clas and any(s["dove"].startswith("plugin") for s in sk):
         p.append({"id": "passa-al-plugin", "titolo": "Questo progetto ha ancora la vecchia installazione", "ambito": "solo questo progetto",
                   "perche": "Hook, regola e strumenti scritti dentro il progetto (AGENTS.md, .github/hooks, .claude/settings.json, .vscode/mcp.json) dalla versione classica o dalla vecchia Lavagna. Col plugin non servono piu e possono puntare a programmi che non esistono, cosi la Plancia non vede niente.",
-                  "azione": {"tipo": "crea", "testo": "Tolgo dal progetto solo le parti della Plancia/Lavagna: il resto dei file resta com'e."}})
+                  "azione": {"tipo": "crea", "testo": "Tolgo dal progetto solo le parti della Plancia/Lavagna: il resto dei file resta com'e."}, "visto": clas[:4]})
     if ag:
         p.append({"id": "agenti-revisione", "titolo": "Fai rivedere i tuoi %d agenti all'AI" % len(ag), "ambito": "solo questo progetto",
                   "perche": "Nella sezione Agenti vedi i controlli automatici (gratis). Per un giudizio vero su ruoli, sovrapposizioni e istruzioni serve che l'agente li legga: costa qualche migliaio di token, una volta.",
@@ -266,6 +269,21 @@ def proposte(rad, sk, ist, mc, tutte=False, ag=()):
 def _leggi(f):
     try: return Path(f).read_text(encoding="utf-8", errors="ignore")
     except Exception: return ""
+
+
+_FM = {}
+
+
+def _da_scollegare(rad):
+    """Cosa toglierebbe 'passa al plugin' da questo progetto (prova a secco): la proposta compare solo se c'e davvero qualcosa da togliere."""
+    try:
+        if "m" not in _FM:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("factory_main", str(Path(__file__).resolve().parent.parent / "factory.py"))
+            _FM["m"] = importlib.util.module_from_spec(spec); spec.loader.exec_module(_FM["m"])
+        out = []; _FM["m"].scollega(Path(rad), False, out)
+        return [x for x in out if not x.startswith("niente da togliere")]
+    except BaseException: return []
 
 
 def _slug(s): return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:30] or "progetto"
@@ -297,14 +315,18 @@ def azione_proposta(rad, pid, azione, agente=""):
         return PT.crea(rad, pid, ag)
     elif azione == "crea" and pid == "doppia-plancia-metodo":
         import shutil
-        for d in (Path.home() / ".claude" / "skills" / "plancia-metodo", Path.home() / ".copilot" / "skills" / "plancia-metodo"):
-            if (d / "SKILL.md").exists(): shutil.rmtree(d, ignore_errors=True)
-        return {"ok": True, "messaggio": "Fatto: resta solo il metodo del plugin."}
+        tolte = []
+        for x in skill(str(rad)):
+            if x["nome"] == "plancia-metodo" and not x["dove"].startswith("plugin"):
+                d = Path(x["file"]).parent
+                if d.name == "plancia-metodo" and d.is_dir(): shutil.rmtree(d, ignore_errors=True); tolte.append(str(d).replace(str(Path.home()), "~"))
+        if not tolte: return {"ok": False, "messaggio": "Non ho trovato copie installate a mano da togliere: non cambio niente."}
+        return {"ok": True, "messaggio": "Fatto: tolta la copia in " + ", ".join(tolte) + ". Resta solo il metodo del plugin."}
     elif azione == "crea" and pid == "passa-al-plugin":
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("factory_main", str(Path(__file__).resolve().parent.parent / "factory.py"))
-        fm = importlib.util.module_from_spec(spec); spec.loader.exec_module(fm)
-        out = []; fm.scollega(rad, True, out)
+        prima = _da_scollegare(rad)
+        if not prima: return {"ok": False, "messaggio": "Non c'e piu niente da togliere in questo progetto."}
+        out = []; _FM["m"].scollega(rad, True, out); resto = _da_scollegare(rad)
+        if resto: return {"ok": False, "messaggio": "Ho tolto qualcosa ma resta: " + "; ".join(resto[:3]) + ". Controlla a mano questi file."}
         return {"ok": True, "messaggio": "Fatto: " + "; ".join(out[:4]) + ". Riapri la chat: da adesso ci pensa il plugin."}
     elif azione == "crea" and pid == "skill-metodo":
         ag = _agenti(agente)
