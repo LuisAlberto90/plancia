@@ -333,4 +333,12 @@ _pl["steps"] = [{"stato": "IN_CORSO"}]; _sb = _PA._salute(_pv, [_pl], [], [1], [
 v("salute: piano ancora aperto con anomalia -> KO", any(c["nome"].startswith("Piano") and c["stato"] == "KO" for c in _sb["controlli"]))
 _lv = _PA._livello(_pv, False, None, "plancia", True)
 v("livello: progetto vuoto = 0 di 4, prossimo passo = guardie; con tutto il livello 1 sale", _lv["n"] == 0 and "Guardie" in _lv["prossimo"]["testo"] and _PA._livello(_pv, True, 1, "plancia", True)["n"] >= 1, _lv)
+from fcore import mappa as _MPA
+_jt = Path(tempfile.mkdtemp())
+for _rel, _txt in (("src/main/java/com/acme/app/security/Sec.java", "package com.acme.app.security;\nimport com.acme.app.dao.Repo;\nclass Sec{}\n"), ("src/main/java/com/acme/app/dao/Repo.java", "package com.acme.app.dao;\nclass Repo{}\n"),
+                   ("src/app/auth/login.ts", "import {X} from '../shared/x.service';\n"), ("src/app/shared/x.service.ts", "export class X{}\n"), ("svc/a.py", "from svc import b\nimport os\nfrom shared import z\n"), ("svc/b.py", "x = 1\n"), ("shared/z.py", "y = 2\n")):
+    (_jt / _rel).parent.mkdir(parents=True, exist_ok=True); (_jt / _rel).write_text(_txt, encoding="utf-8")
+_mc = _MPA._calcola(_jt); _ids = {m["id"] for m in _mc["moduli"]}; _ar = {(a, b) for a, b, n in _mc["archi"]}
+v("mappa: Java per package, Angular per area, Python per cartella; frecce giuste", {"com.acme.app.security", "com.acme.app.dao", "src/app/auth", "src/app/shared", "svc", "shared"} <= _ids and ("com.acme.app.security", "com.acme.app.dao") in _ar and ("src/app/auth", "src/app/shared") in _ar and ("svc", "shared") in _ar, (_ids, _ar))
+v("mappa: moduli toccati dai file dell'agente (relativi e assoluti)", _MPA._tocca(_jt, [{"file": ["src/app/auth/login.ts", str(_jt / "svc" / "b.py"), "../fuori.py"]}], _ids) == ["src/app/auth", "svc"])
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

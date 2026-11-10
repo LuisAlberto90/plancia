@@ -329,6 +329,16 @@ def main(a):
                         import traceback; d = {"errore_pannello": traceback.format_exc()[-2500:]}
                     finally: os.environ["FACTORY_ROOT"] = str(rad)
                 body, ct = json.dumps(d, ensure_ascii=False).encode(), "application/json"
+            elif u.path == "/api/mappa":
+                with BLOCCO:
+                    if q and q not in PN.progetti(): self.send_response(403); self.end_headers(); return
+                    try:
+                        try: from fcore import mappa as MP
+                        except ImportError: from . import mappa as MP
+                        d = MP.mappa(q or str(rad))
+                    except Exception:
+                        import traceback; d = {"errore_pannello": traceback.format_exc()[-2500:]}
+                body, ct = json.dumps(d, ensure_ascii=False).encode(), "application/json"
             elif u.path == "/api/state":
                 with BLOCCO:
                     if q and q not in PN.progetti(): self.send_response(403); self.end_headers(); return      # solo progetti conosciuti
