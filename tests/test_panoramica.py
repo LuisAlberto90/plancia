@@ -285,6 +285,7 @@ from fcore import mcp as _MC
 import re as _re
 v("la pagina e il motore hanno la stessa versione", _re.search(r"PAGINA_V='([^']+)'", (Path(F).parent / "fcore" / "pannello.html").read_text(encoding="utf-8")).group(1) == _MC.VERSIONE)
 from fcore import richieste as _RQ
-_rr = {"righe": {}}; _RQ._somma(_rr, "/p", "Edit", {"file_path": "/p/a.py", "old_string": "a\nb\nc", "new_string": "a\nB\nc\nd"}); _RQ._somma(_rr, "/p", "Write", {"file_path": "/p/n.py", "content": "x\ny\n"})
+_bp = os.path.abspath("proj-righe"); _pj = lambda n: os.path.join(_bp, n)
+_rr = {"righe": {}}; _RQ._somma(_rr, _bp, "Edit", {"file_path": _pj("a.py"), "old_string": "a\nb\nc", "new_string": "a\nB\nc\nd"}); _RQ._somma(_rr, _bp, "Write", {"file_path": _pj("n.py"), "content": "x\ny\n"})
 v("richieste: righe aggiunte e tolte per file", _rr["righe"] == {"a.py": [2, 1], "n.py": [2, 0]})
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)
