@@ -17,16 +17,62 @@ def _ts(s):
     except Exception: return None
 
 
+def _conta(vecchio, nuovo):
+    """Righe aggiunte e tolte tra due testi (solo conteggi, nessun contenuto salvato)."""
+    import difflib
+    a, b = str(vecchio or "").splitlines(), str(nuovo or "").splitlines()
+    ag = tl = 0
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if tag in ("replace", "delete"): tl += i2 - i1
+        if tag in ("replace", "insert"): ag += j2 - j1
+    return ag, tl
+
+
+def _righe(n, i):
+    """{file: [aggiunte, tolte]} per una modifica fatta con Edit/Write/MultiEdit o apply_patch. Vuoto se non si capisce."""
+    if not isinstance(i, dict): return {}
+    nl = str(n or "").lower(); f = i.get("file_path") or i.get("path") or i.get("filePath")
+    try:
+        if nl in ("edit", "str_replace", "str_replace_editor") and f and ("new_string" in i or "new_str" in i):
+            return {f: list(_conta(i.get("old_string", i.get("old_str", "")), i.get("new_string", i.get("new_str", ""))))}
+        if nl == "multiedit" and f:
+            t = [0, 0]
+            for e in i.get("edits") or []:
+                a, d = _conta(e.get("old_string"), e.get("new_string")); t[0] += a; t[1] += d
+            return {f: t}
+        if nl in ("write", "create", "create_file") and f and isinstance(i.get("content", i.get("file_text")), str):
+            return {f: [len(str(i.get("content", i.get("file_text"))).splitlines()), 0]}
+        if nl == "apply_patch":
+            out, cur = {}, None
+            for l in str(i.get("input") or i.get("patch") or "").splitlines():
+                m = re.match(r"\*\*\* (?:Update|Add|Delete) File:[ \t]*(.+?)\s*$", l)
+                if m: cur = m.group(1); out[cur] = [0, 0]; continue
+                if cur and l.startswith("+") and not l.startswith("+++"): out[cur][0] += 1
+                elif cur and l.startswith("-") and not l.startswith("---"): out[cur][1] += 1
+            return out
+    except Exception: return {}
+    return {}
+
+
+def _somma(r, cwd, n, i):
+    for f, (a, d) in _righe(n, i).items():
+        f = str(f)
+        if cwd and os.path.isabs(f):
+            try: f = os.path.relpath(f, cwd)
+            except Exception: pass
+        f = f.replace("\\", "/"); t = r["righe"].setdefault(f, [0, 0]); t[0] += a; t[1] += d
+
+
 def _nuova(domanda, ts, fonte, sid):
     return {"domanda": lib.redigi_testo(domanda, 400), "inizio": ts, "fine": ts, "fonte": fonte, "sessione": sid, "token_lavoro": 0, "token_riletti": 0, "ragionamento": 0,
-            "strumenti": {}, "file": [], "comandi": [], "errori": 0, "sotto_agenti": 0, "risposta": "", "rami": None, "attivita": [], "finita": False, "_id": {}, "_passo": None, "piano_scritto": False, "ambiente": []}
+            "strumenti": {}, "file": [], "comandi": [], "errori": 0, "sotto_agenti": 0, "risposta": "", "rami": None, "attivita": [], "finita": False, "_id": {}, "_passo": None, "piano_scritto": False, "ambiente": [], "righe": {}}
 
 
 def _chiudi(r, rami):
     if r is None: return None
     r["rami"] = rami.passi() if rami.r else None
     a, b = _ts(r["inizio"]), _ts(r["fine"]); r["durata_s"] = int(b - a) if a and b and b >= a else None
-    r["risposta"] = lib.redigi_testo(r["risposta"], 1200); r["file"] = r["file"][-12:]; r["comandi"] = r["comandi"][-8:]
+    r["risposta"] = lib.redigi_testo(r["risposta"], 1200); r["file"] = r["file"][-12:]; r["righe"] = {k: v for k, v in list(r.get("righe", {}).items())[-12:]}; r["comandi"] = r["comandi"][-8:]
     dp = r.pop("_dal_piano", None); r["fuori_piano"] = [a for a in r["attivita"][dp:] if not a.get("passo") and a["tipo"] == "modifica"] if dp is not None else []
     r.pop("_pend", None)
     for a in r["attivita"]: a.pop("cmd", None)
@@ -138,7 +184,7 @@ def da_claude(f):
             if b.get("type") == "text" and b.get("text", "").strip(): r["risposta"] = b["text"]
             if b.get("type") != "tool_use": continue
             usa = True; n = b.get("name", "?"); i = b.get("input") or {}; r["strumenti"][n] = r["strumenti"].get(n, 0) + 1
-            tp, cosa = _azione(n, i, d.get("cwd"))
+            tp, cosa = _azione(n, i, d.get("cwd")); _somma(r, d.get("cwd"), n, i)
             if tp == "plancia": _segna(r, cosa); continue
             if n in ("Bash", "bash", "shell"):
                 for mk in MARCATORE.finditer(i.get("command") or ""): _segna(r, mk.group(0))    # `cd x; plancia passo D; pytest` -> il resto e del passo D
@@ -183,7 +229,7 @@ def da_copilot(f):
             if isinstance(a, str):
                 try: a = json.loads(a)
                 except Exception: a = {"command": a}
-            tp, cosa = _azione(n, a, None)
+            tp, cosa = _azione(n, a, None); _somma(r, None, n, a)
             if tp == "plancia": _segna(r, cosa); continue
             if tp == "sotto-agente": subs.add(x.get("toolCallId"))
             if tp: r["_id"][x.get("toolCallId")] = len(r["attivita"]); r["attivita"].append({"tipo": tp, "cosa": cosa, "esito": "in corso", "ts": ts, "passo": r["_passo"]}); r["finita"] = False
