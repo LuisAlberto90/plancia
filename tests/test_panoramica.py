@@ -267,4 +267,21 @@ ag = {a["nome"]: a for a in _ST.agenti(str(pa))}
 v("agenti: trovati quelli di Copilot e di Claude con descrizione e strumenti", set(ag) == {"reviewer", "tester"} and ag["reviewer"]["per"] == "GitHub Copilot" and ag["reviewer"]["strumenti"] == ["search", "read"] and ag["tester"]["per"] == "Claude Code", ag)
 v("agenti: quello fatto bene non ha consigli, quello vago si", not ag["reviewer"]["consigli"] and len(ag["tester"]["consigli"]) >= 2, ag)
 v("agenti: proposta di revisione con i file", any(x["id"] == "agenti-revisione" and "reviewer.agent.md" in x["azione"]["testo"] for x in _ST.tutto(str(pa))["proposte"]))
+from fcore import policy as _PO
+sg = lambda n, a: _PO.segreto(n, a)
+v("segreti: lettura di .env, chiavi e cartella secrets bloccata (strumento e comando, anche Windows)", all(sg(*x) for x in [("read_file", {"filePath": "C:\\p\\.env.local"}), ("Bash", {"command": "cat .env"}), ("run_in_terminal", {"command": "Get-Content config\\secrets\\db.yml"}), ("Read", {"file_path": "certs/server.pem"}), ("Bash", {"command": "type credentials.json"})]))
+v("segreti: file normali e modelli si leggono", not any(sg(*x) for x in [("read_file", {"filePath": ".env.example"}), ("read_file", {"filePath": "src/environment.ts"}), ("read_file", {"filePath": "src/credentials.service.ts"}), ("Bash", {"command": "npm test"}), ("Bash", {"command": "grep env src/app.ts"})]))
+dc = lambda c: _PO.da_chiedere("run_in_terminal", {"command": c})
+v("distruttivi: serve il si della persona", all(dc(c) for c in ["rm -rf src", "Remove-Item build -Recurse -Force", "git clean -fd", "git checkout -- .", "git branch -D x", "rmdir /s /q dist"]) and not any(dc(c) for c in ["rm a.txt", "git checkout main", "npm run clean", "git status"]))
+ps = lav / "seg-demo"; (ps / ".factory").mkdir(parents=True); (ps / ".git").mkdir()
+hk = lambda dati: subprocess.run([sys.executable, F, "hook", "PreToolUse"], input=json.dumps(dict(dati, hook_event_name="PreToolUse", cwd=str(ps))), capture_output=True, text=True, encoding="utf-8", errors="replace", env=dict(env, FACTORY_ROOT=str(ps))).stdout
+v("hook: leggere .env e negato, rm -rf chiede, ls passa", '"deny"' in hk({"tool_name": "Read", "tool_input": {"file_path": str(ps / ".env")}}) and '"ask"' in hk({"tool_name": "Bash", "tool_input": {"command": "rm -rf build"}}) and hk({"tool_name": "Bash", "tool_input": {"command": "ls"}}).strip() == "")
+sys.path.insert(0, str(Path(F).parent)); os.environ["FACTORY_ROOT"] = str(ps)
+from fcore import store as _SR
+for i in range(3000): _SR.scrivi_riga("coda.jsonl", {"n": i, "x": "y" * 200})
+cd = _SR.leggi_righe("coda.jsonl", 50)
+v("registro: la coda si legge giusta senza rileggere tutto", [x["n"] for x in cd] == list(range(2950, 3000)))
+from fcore import mcp as _MC
+import re as _re
+v("la pagina e il motore hanno la stessa versione", _re.search(r"PAGINA_V='([^']+)'", (Path(F).parent / "fcore" / "pannello.html").read_text(encoding="utf-8")).group(1) == _MC.VERSIONE)
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

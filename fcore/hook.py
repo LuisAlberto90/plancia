@@ -25,6 +25,7 @@ def _plugin_sessione(d, ev, rad, store):
     try: viste = json.loads(f.read_text(encoding="utf-8"))
     except Exception: viste = []
     if str(ev).lower() == "sessionstart": auto.avvia_pannello(); auto.mappa_se_manca(rad); auto.togli_vecchia_skill()
+    if sid and sid in viste and str(ev).lower() != "sessionstart": auto.avvia_pannello()      # pannello spento o rimasto a una versione vecchia: si rimette a posto alla prossima domanda
     if sid and sid in viste:                                              # messaggi successivi della stessa chat: promemoria minimo (~30 token), la regola intera l'ha gia
         if str(ev).lower() != "sessionstart" and (store.config().get("piano") or "obbligatorio") == "obbligatorio":
             print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": "[Plancia] New message. Unless it is a pure question: same work as before -> plancia_piano_aggiungi; different work -> plancia_piano_nuovo with \"nuovo\": true. Plan before reading files."}}, ensure_ascii=False))
@@ -67,6 +68,16 @@ def main(a):
             strum = d.get("tool_name") or d.get("toolName")
             arg = d.get("tool_input") if "tool_input" in d else d.get("toolArgs")
             ok, mot = policy.verifica_strumento(strum, arg)
+            if ok and store.config().get("segreti", True):
+                sg = policy.segreto(strum, arg)
+                if sg: ok, mot = False, "secret file (%s): reading it would put secrets in the chat and in logs. Ask the user to give you only the non-secret values you need, or read the .example file" % sg
+            ask = policy.da_chiedere(strum, arg) if ok else None
+            if ask:                                                            # distruttivo: decide la persona, in chat (la Plancia la avvisa)
+                store.evento("guardia_chiede", "policy", strumento=strum, messaggio=ask)
+                why = "[Plancia] destructive command (%s): the user must approve it" % ask
+                if d.get("hook_event_name"): print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": why}}, ensure_ascii=False))
+                else: print(json.dumps({"permissionDecision": "ask", "permissionDecisionReason": why}, ensure_ascii=False))
+                if _fonte(d) != "vscode": return 0
             if ok and policy.e_scrittura(strum, arg) and policy.piano_mancante(): ok, mot = False, policy.msg_piano()
             if ok:
                 if _fonte(d) == "vscode":                                       # VS Code: serve sapere quando parte uno strumento (sotto-agenti, permessi, guardia attiva)

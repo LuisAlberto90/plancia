@@ -66,6 +66,9 @@ def redigi_testo(s, n=1500):
 # ---- righe append-only (registro, eventi, handoff)
 def scrivi_riga(nome, obj):
     d = dir_(); d.mkdir(parents=True, exist_ok=True)
+    try:
+        if nome == "eventi.jsonl" and (d / nome).stat().st_size > 8_000_000: os.replace(d / nome, d / "eventi-vecchi.jsonl")     # il registro non cresce all'infinito: tengo l'ultimo pezzo
+    except OSError: pass
     with open(d / nome, "a", encoding="utf-8") as f: f.write(json.dumps(obj, ensure_ascii=False) + "\n")
 
 
@@ -73,7 +76,15 @@ def leggi_righe(nome, ultime=None):
     p = dir_() / nome
     if not p.exists(): return []
     out = []
-    for l in p.read_text(encoding="utf-8", errors="replace").splitlines():
+    if ultime:                                                             # serve solo la coda: non rileggo un file che cresce a ogni azione
+        try:
+            with open(p, "rb") as f:
+                f.seek(0, 2); n = f.tell(); k = min(n, ultime * 2500 + 65536); f.seek(n - k); b = f.read()
+            tx = b.decode("utf-8", errors="replace")
+            if k < n: tx = tx.split("\n", 1)[1] if "\n" in tx else ""
+        except Exception: tx = p.read_text(encoding="utf-8", errors="replace")
+    else: tx = p.read_text(encoding="utf-8", errors="replace")
+    for l in tx.splitlines():
         try: out.append(json.loads(l))
         except Exception: pass
     return out[-ultime:] if ultime else out

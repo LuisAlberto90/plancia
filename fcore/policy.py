@@ -135,6 +135,46 @@ def msg_piano():
     return MSG_PIANO.format(cmd=lib.comando())
 
 
+# File con segreti: l'agente non li legge nemmeno (il contenuto finirebbe nella chat e nei log). I modelli (.env.example) si possono leggere.
+SEGRETO = re.compile(r"""(?ix)(^|[\s"'=/\\:(,])(
+    \.env(\.(?!example|sample|template|dist|defaults)[\w-]+)? | [\w.-]*\.(pem|key|pfx|p12|jks|keystore) | id_(rsa|dsa|ecdsa|ed25519)[\w.-]* | credentials(\.(json|ya?ml|xml|ini|txt|csv|properties))? | \.pypirc | \.netrc
+)(?=$|[\s"';|&)>,])""")
+SEGRETO_DIR = re.compile(r"(?i)(^|[\s\"'=/\\])secrets?[/\\]")
+LETTURA = ("read", "view", "open", "cat", "get_file", "fetch_file", "show")
+# Comandi che cancellano o buttano via lavoro: non vietati, ma la persona deve dire si in chat.
+DISTRUTTIVI = [(r"(?i)\brm\s+(-\w*\s+)*-\w*r", "cancella cartelle intere"), (r"(?i)\b(remove-item|ri|del|erase|rd|rmdir)\b[^|;&]*(-recurse|/s\b)", "cancella cartelle intere"),
+               (r"\bgit\s+clean\s+-\w*[fdx]", "cancella i file non salvati in git"), (r"\bgit\s+(checkout|restore)\s+(--\s+)?\.(\s|$)", "butta via le modifiche non salvate"),
+               (r"\bgit\s+branch\s+-D\b", "cancella un ramo"), (r"\bgit\s+stash\s+(drop|clear)\b", "butta via lavoro messo da parte"), (r"\bgit\s+push\b[^|;&]*\s--delete\b", "cancella un ramo sul server"),
+               (r"(?i)\bdocker\s+(system|volume)\s+prune\b", "cancella dati di Docker")]
+
+
+def segreto(nome, args):
+    """Se la chiamata LEGGE un file di segreti ritorna il nome del file, altrimenti None."""
+    n = (nome or "").lower(); args = args or {}
+    if isinstance(args, str):
+        try: args = json.loads(args)
+        except Exception: args = {"command": args}
+    if not isinstance(args, dict): return None
+    cand = []
+    if "command" in args or any(s == n or n.endswith(s) for s in SHELL): cand = [str(args.get("command") or args.get("cmd") or "")]
+    elif any(s in n for s in LETTURA): cand = [str(args[k]) for k in CHIAVI_FILE if isinstance(args.get(k), str)]
+    for c in cand:
+        m = SEGRETO.search(c) or SEGRETO_DIR.search(c)
+        if m: return (m.group(2) if m.re is SEGRETO else "secrets/").strip()
+    return None
+
+
+def da_chiedere(nome, args):
+    """Comando distruttivo: ritorna il motivo (serve il si della persona in chat), altrimenti None."""
+    n = (nome or "").lower(); args = args or {}
+    if isinstance(args, str):
+        try: args = json.loads(args)
+        except Exception: args = {"command": args}
+    if not isinstance(args, dict) or not ("command" in args or any(s == n or n.endswith(s) for s in SHELL)): return None
+    c = str(args.get("command") or args.get("cmd") or "")
+    return next((perche for pat, perche in DISTRUTTIVI if re.search(pat, c)), None)
+
+
 def verifica_strumento(nome, args):
     """Decide su una chiamata di strumento di Claude Code o Copilot. Ritorna (ammesso, motivo)."""
     n = (nome or "").lower(); args = args or {}

@@ -351,8 +351,26 @@ def main(a):
     print("Pannello su", url, "(progetto %s) - Ctrl+C per fermare" % rad, flush=True)
     if not o.no_browser and o.host == "127.0.0.1":
         import threading, webbrowser; threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+    riavvia = []
+    def _guardia_versione():                                             # dopo un aggiornamento (git pull) il pannello si riavvia da solo con il codice nuovo
+        f = QUI / "mcp.py"
+        while True:
+            time.sleep(5)
+            try: m = re.search(r'VERSIONE\s*=\s*"([^"]+)"', f.read_text(encoding="utf-8"))
+            except Exception: continue
+            if m and m.group(1) != _m.VERSIONE: riavvia.append(1); srv.shutdown(); return
+    import threading as _th; _th.Thread(target=_guardia_versione, daemon=True).start()
     try: srv.serve_forever()
     except KeyboardInterrupt: pass
+    if riavvia:
+        try: srv.server_close()
+        except Exception: pass
+        import subprocess
+        kw = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+        if os.name == "nt": kw["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000
+        else: kw["start_new_session"] = True
+        try: subprocess.Popen([sys.executable, str(QUI.parent / "factory.py"), "pannello", "--no-browser", "--porta", str(o.porta)] + (["--host", o.host, "--token", o.token] if o.token else []), **kw)  # noqa: S603
+        except Exception: pass
     return 0
 
 

@@ -10,6 +10,8 @@
 - **Unica scrittura dal pannello:** accetta/rifiuta una proposta della scheda Strumenti (`POST /api/proposta`, JSON, solo stessa origine, solo progetti registrati, id validati).
 - **Segreti.** Gli hook non salvano gli input degli strumenti; domande e risposte sono accorciate e ripulite da password, token, chiavi e stringhe di connessione prima di essere scritte. Tutto resta in `.factory/` del progetto, esclusa da git.
 - **Guardie.** File protetti (`.env`, chiavi, `.git`, `secrets/`) e comandi pericolosi (`rm -rf`, `push --force`, `DROP TABLE`, `curl | sh`…) vengono negati all'agente prima dell'esecuzione. Le guardie fermano errori dell'agente: non sostituiscono permessi veri (utenti DB in sola lettura, branch protetti).
+- **Segreti: nemmeno in lettura.** L'agente non può leggere `.env`, chiavi (`*.pem`, `*.key`, `id_rsa`…), `credentials.*` e la cartella `secrets/`, né con lo strumento di lettura né con un comando (`cat`, `type`, `Get-Content`…): il contenuto finirebbe nella chat e nei log. I modelli (`.env.example`) si leggono. Si spegne con `"segreti": false` in `.factory/config.json`.
+- **Comandi distruttivi: decide la persona.** Cancellare cartelle intere (`rm -r`, `Remove-Item -Recurse`, `rmdir /s`), `git clean`, `git checkout -- .`, `git branch -D` non sono vietati ma richiedono il tuo sì in chat; la Plancia ti avvisa che la chat aspetta.
 - **Fail-open voluto.** Un errore interno degli hook non blocca mai l'agente (per questo nel codice ci sono `try/except` silenziosi: sono intenzionali).
 - **Processi.** Nessun `shell=True`, nessun `eval`/`exec`/`pickle`; i sottoprocessi usano liste di argomenti.
 
