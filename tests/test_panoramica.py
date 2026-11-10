@@ -116,7 +116,7 @@ v("init: mappa del progetto scritta senza LLM", "python -m pytest -q tests" in c
 sk = pm / ".claude/skills/plancia-metodo/SKILL.md"
 v("init: skill plancia-metodo installata nel progetto", sk.exists() and "name: plancia-metodo" in sk.read_text(), x.stdout)
 x = subprocess.run([sys.executable, F, "metodo", "--globale", "--scrivi"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pm))
-v("metodo --globale: per Claude Code e Copilot", (casa / ".claude/skills/plancia-metodo/SKILL.md").exists() and (casa / ".copilot/skills/plancia-metodo/SKILL.md").exists(), x.stdout)
+v("metodo --globale: una copia sola in ~/.claude/skills (la leggono Claude Code e Copilot), niente doppione", (casa / ".claude/skills/plancia-metodo/SKILL.md").exists() and not (casa / ".copilot/skills/plancia-metodo/SKILL.md").exists(), x.stdout)
 x = subprocess.run([sys.executable, F, "salute"], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(pm)); v("salute: mappa del progetto presente", "Mappa del progetto" in x.stdout and "aggiornata oggi" in x.stdout, x.stdout)
 
 # richieste, nota "risposta diretta", riprendere
@@ -288,4 +288,25 @@ from fcore import richieste as _RQ
 _bp = os.path.abspath("proj-righe"); _pj = lambda n: os.path.join(_bp, n)
 _rr = {"righe": {}}; _RQ._somma(_rr, _bp, "Edit", {"file_path": _pj("a.py"), "old_string": "a\nb\nc", "new_string": "a\nB\nc\nd"}); _RQ._somma(_rr, _bp, "Write", {"file_path": _pj("n.py"), "content": "x\ny\n"})
 v("richieste: righe aggiunte e tolte per file", _rr["righe"] == {"a.py": [2, 1], "n.py": [2, 0]})
+from fcore import pattern as _PT, strumenti as _SV
+v("pattern: chiave dei comandi", _PT._chiave("mvn test -Dtest=A") == "mvn test" and _PT._chiave("npm run build") == "npm run build" and _PT._chiave("git status") is None and _PT._chiave("ls -la") is None)
+_pr = Path(tempfile.mkdtemp()); (_pr / ".claude" / "agents").mkdir(parents=True); (_pr / ".claude" / "agents" / "a.md").write_text("---\nname: a\ndescription: Use when checking things in this project\ntools: ['read', 'search']\nmodel: Claude Sonnet 5.5 (copilot)\n---\nReturn a list.\n", encoding="utf-8")
+_cs = " ".join(" ".join(a["consigli"]) for a in _SV.agenti(str(_pr)))
+v("agenti: formato Copilot in un file Claude segnalato, con cosa mettere", "Formato Copilot in un file Claude" in _cs and "Read, Grep, Glob" in _cs and "non e un nome di Claude Code" in _cs)
+_ag = _PT.agente_md("copilot", "x-analista", "d"); _ac = _PT.agente_md("claude", "x-analista", "d")
+v("agente nuovo: Copilot con alias, Claude con nomi Claude, entrambi di sola lettura", "tools: ['read', 'search']" in _ag and "tools: Read, Grep, Glob" in _ac and "Edit" not in _ac and "edit" not in _ag.split("---")[1])
+_pj = Path(tempfile.mkdtemp()) / "demo-app"; (_pj / ".git").mkdir(parents=True)
+def _rq(i, dom, att): return {"domanda": dom, "inizio": "2026-11-0%dT10:00:00" % (i + 1), "fine": "2026-11-0%dT10:05:00" % (i + 1), "attivita": att, "fonte": "claude", "file": [], "errori": 0}
+_cm = [{"tipo": "comando", "cosa": "mvn test -Dtest=FooTest", "esito": "ok"}, {"tipo": "leggi", "cosa": "src/Foo.java", "esito": "ok"}]
+_ln = _PT.RQ.tutte
+_PT.RQ.tutte = lambda rad, n=200: [_rq(i, "spiega come funziona il modulo login numero %d" % i, _cm + [{"tipo": "cerca", "cosa": "x", "esito": "ok"}] * 5) for i in range(5)]
+_PT._C.clear(); _cand, _inf = _PT.analizza(str(_pj)); _ids = [c["id"] for c in _cand]
+v("pattern: comando ripetuto, file riletto, analisi ripetuta e agente di sola lettura", "cand-cmd-mvn-test" in _ids and "cand-file-riletti" in _ids and "cand-agente-analista" in _ids and _inf["richieste"] == 5, _ids)
+_r1 = _PT.crea(str(_pj), "cand-cmd-mvn-test", ["copilot", "claude"]); _sk = _pj / ".claude" / "skills" / "demo-app-comandi" / "SKILL.md"
+v("skill dai comandi: una copia sola in .claude/skills, con il comando e senza doppioni", _r1["ok"] and "mvn test -Dtest=FooTest" in _sk.read_text(encoding="utf-8") and not (_pj / ".github" / "skills").exists(), _r1)
+_pj2 = Path(tempfile.mkdtemp()) / "demo-app"; (_pj2 / ".git").mkdir(parents=True)
+_r2 = _PT.crea(str(_pj), "cand-agente-analista", ["copilot"]); _r3 = _PT.crea(str(_pj2), "cand-agente-analista", ["claude"])
+v("agente di sola lettura: file giusto per ognuno dei due agenti", _r2["ok"] and (_pj / ".github/agents/demo-app-analista.agent.md").exists() and _r3["ok"] and (_pj2 / ".claude/agents/demo-app-analista.md").exists(), (_r2, _r3))
+v("candidati: id sconosciuto rifiutato, niente contenuto dal browser", not _PT.crea(str(_pj), "cand-../../x", ["claude"])["ok"])
+_PT.RQ.tutte = _ln; _PT._C.clear()
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

@@ -4,8 +4,8 @@
   plancia skill-progetto [--scrivi] crea la skill del progetto "come si fanno build e test qui" dai comandi verificati"""
 import json, os, re, sys
 from pathlib import Path
-try: from . import store as lib
-except ImportError: import store as lib
+try: from . import store as lib, pattern as PT
+except ImportError: import store as lib, pattern as PT
 
 TOKEN = lambda testo: max(1, len(testo) // 4)                      # stima grezza: ~4 caratteri per token
 
@@ -60,6 +60,28 @@ def _fm_agente(f):
     return d, (t[m.end():] if m else t)
 
 
+CLAUDE_TOOL = {"read", "grep", "glob", "bash", "edit", "write", "multiedit", "webfetch", "websearch", "task", "agent", "todowrite", "notebookedit"}
+COPILOT_ALIAS = {"read", "search", "edit", "execute", "agent", "web", "todo"}
+MODELLI_CLAUDE = re.compile(r"(?i)^(sonnet|opus|haiku|fable|inherit|claude-[\w.-]+)$")
+
+
+def _formato_agente(per, f, m, tools):
+    """Il formato dei due agenti NON e lo stesso: segnala le cose scritte nel formato dell'altro (con cosa mettere al loro posto)."""
+    c = []; t = [str(x).strip() for x in (tools or [])]
+    if per == "Claude Code":
+        alias = [x for x in t if x.lower() in COPILOT_ALIAS and x not in ("Read", "Edit", "Agent")]
+        if alias: c.append("Formato Copilot in un file Claude: `%s` sono nomi di Copilot. In Claude Code gli strumenti si chiamano Read, Grep, Glob, Bash, Edit, Write. Esempio: `tools: Read, Grep, Glob`." % ", ".join(alias[:4]))
+        if m.get("model") and not MODELLI_CLAUDE.match(str(m.get("model"))): c.append("Il modello `%s` non e un nome di Claude Code: usa sonnet, opus, haiku o inherit (o un id completo come claude-opus-5-5)." % m.get("model"))
+        if not m.get("name"): c.append("Manca `name:` (obbligatorio in Claude Code, minuscole e trattini): senza, l'agente non viene riconosciuto.")
+    else:
+        alias = [x for x in t if x.lower() in CLAUDE_TOOL and x.lower() not in COPILOT_ALIAS]
+        if alias: c.append("Formato Claude in un file Copilot: `%s` sono nomi di Claude. In Copilot gli strumenti si chiamano read, search, edit, execute, web, agent. Esempio: `tools: ['read', 'search']`." % ", ".join(alias[:4]))
+        if str(m.get("model") or "").lower() in ("sonnet", "opus", "haiku", "inherit"): c.append("Il modello `%s` e un nome di Claude: in Copilot serve il nome del modello come appare nel selettore (es. `Claude Sonnet 5.5 (copilot)`), oppure togli la riga." % m.get("model"))
+        if f.parent.name == "chatmodes" or f.name.endswith(".chatmode.md"): c.append("Vecchio formato (chat mode): sposta il file in `.github/agents/` e chiamalo `nome.agent.md`.")
+        elif f.parent.name == "agents" and not f.name.endswith(".agent.md") and ".github" in f.parts: c.append("Rinomina in `%s.agent.md`: e il nome che Copilot (anche da riga di comando) riconosce." % f.name[:-3])
+    return c
+
+
 def agenti(rad):
     """Agenti personalizzati (sotto-agenti di Claude Code, custom agent / chat mode di Copilot): cosa fa ognuno e cosa migliorare. Solo lettura dei file."""
     h = Path.home(); r = Path(rad); out = []
@@ -83,6 +105,7 @@ def agenti(rad):
             if tok > 1500: cons.append("Istruzioni lunghe (~%d token, lette ogni volta che parte): sposta i dettagli in una skill e lascia qui ruolo, limiti e formato della risposta." % tok)
             elif tok < 20: cons.append("Istruzioni quasi vuote: scrivi cosa deve fare, cosa NON deve fare e in che formato risponde.")
             if tok >= 20 and not re.search(r"(?i)\b(output|return|report|respond|reply|format|rispond|restitu|riporta|elenca)", corpo): cons.append("Non dice in che formato deve rispondere: aggiungi una riga (es. \"Return: findings as a list with file:line\").")
+            cons += _formato_agente(per, f, m, tools)
             out.append({"nome": nome, "per": per, "ambito": ambito, "descrizione": desc[:400], "intro": lib.redigi(intro, 220) if intro and intro != desc else "", "sezioni": titoli,
                         "strumenti": tools or [], "modello": str(m.get("model") or ""), "token": tok, "file": str(f.relative_to(r)).replace("\\", "/") if r in f.parents else str(f).replace(str(h), "~"), "consigli": cons})
     par = lambda a: set(re.findall(r"[a-z]{4,}", (a["nome"] + " " + a["descrizione"]).lower()))
@@ -226,6 +249,15 @@ def proposte(rad, sk, ist, mc, tutte=False, ag=()):
         p.append({"id": "agenti-revisione", "titolo": "Fai rivedere i tuoi %d agenti all'AI" % len(ag), "ambito": "solo questo progetto",
                   "perche": "Nella sezione Agenti vedi i controlli automatici (gratis). Per un giudizio vero su ruoli, sovrapposizioni e istruzioni serve che l'agente li legga: costa qualche migliaio di token, una volta.",
                   "azione": {"tipo": "prompt", "testo": "Review my custom agents: %s. For each one: what it does in one line, when it should be used, what overlaps with the others, missing limits (tools, what it must NOT do, output format), and max 3 concrete improvements with the exact text to add or remove. Then tell me if any agent is useless or missing for this project. Do not edit files: report only." % ", ".join(a["file"] for a in ag[:12])}})
+    try: cand, _info = PT.analizza(rad)
+    except Exception: cand = []
+    for c in cand:
+        x = {k: c[k] for k in ("id", "genere", "titolo", "ambito", "visto", "perche", "effetto") if k in c}
+        if c["tipo_cand"] in ("comando", "analista"):
+            x["scegli_agente"] = True; x["solo_uno"] = bool(c.get("solo_uno")); x["azione"] = {"tipo": "crea", "testo": c["effetto"]}
+            if c["tipo_cand"] == "comando" and not c.get("completi"): x["scegli_agente"] = False; x["azione"] = {"tipo": "info", "testo": "I comandi visti sono troppo lunghi per scriverli giusti in automatico. Chiedi all'agente: \"Create a project skill with the exact build/test commands you use here\"."}
+        else: x["azione"] = {"tipo": "prompt", "testo": c["prompt"]}
+        p.append(x)
     rif = _rifiutate(rad)
     for x in p: x["rifiutata"] = x["id"] in rif
     return p if tutte else [x for x in p if not x["rifiutata"]]
@@ -252,11 +284,17 @@ def azione_proposta(rad, pid, azione, agente=""):
         if not ag: return {"ok": False, "messaggio": "scegli prima per quale agente"}
         os.environ["FACTORY_ROOT"] = str(rad)
         import contextlib, io
+        if len(ag) > 1: ag = ["claude"]                                   # .claude/skills lo leggono Claude Code e Copilot: una copia sola, senza doppioni
         for a in ag:
             with contextlib.redirect_stdout(io.StringIO()): rc = skill_progetto(True, CARTELLE[a])
             if rc: return {"ok": False, "messaggio": "non sono riuscito a creare la skill"}
             _escludi_da_git(rad, "%s/skills/%s-build-test/" % (CARTELLE[a], _slug2(rad.name)))
-        return {"ok": True, "messaggio": "Skill creata in " + " e ".join("%s/skills" % CARTELLE[a] for a in ag) + " (esclusa da git): da adesso l'agente usa questi comandi."}
+        return {"ok": True, "messaggio": "Skill creata in %s/skills (esclusa da git)%s: da adesso l'agente usa questi comandi." % (CARTELLE[ag[0]], ": la leggono sia Claude Code sia Copilot" if agente == "entrambi" else "")}
+    elif azione == "crea" and pid.startswith("cand-"):
+        ag = _agenti(agente)
+        if not ag: return {"ok": False, "messaggio": "scegli prima per quale agente"}
+        if pid == "cand-agente-analista" and len(ag) != 1: return {"ok": False, "messaggio": "Per un agente scegli uno solo: i due formati sono diversi."}
+        return PT.crea(rad, pid, ag)
     elif azione == "crea" and pid == "doppia-plancia-metodo":
         import shutil
         for d in (Path.home() / ".claude" / "skills" / "plancia-metodo", Path.home() / ".copilot" / "skills" / "plancia-metodo"):
@@ -272,8 +310,8 @@ def azione_proposta(rad, pid, azione, agente=""):
         ag = _agenti(agente)
         if not ag: return {"ok": False, "messaggio": "scegli prima per quale agente"}
         from fcore import metodo
-        metodo.installa(globale=True, scrivi=True, agenti=ag)
-        return {"ok": True, "messaggio": "Metodo installato per tutti i tuoi progetti (" + " e ".join("~/.%s/skills" % ("copilot" if a == "copilot" else "claude") for a in ag) + ")."}
+        dest = metodo.destinazioni(True, ag); metodo.installa(globale=True, scrivi=True, agenti=ag)
+        return {"ok": True, "messaggio": "Metodo installato per tutti i tuoi progetti in " + " e ".join("~/" + str(d.parent.parent.name) + "/skills" for d in dest) + (": lo leggono sia Claude Code sia Copilot." if len(ag) > 1 else ".")}
     else: return {"ok": False, "messaggio": "azione non valida"}
     d["rifiutate"] = sorted(rif); f.write_text(json.dumps(d, indent=1), encoding="utf-8")
     return {"ok": True}
@@ -308,7 +346,9 @@ def tutto(rad=None):
         if fm.exists():
             tx = fm.read_text(encoding="utf-8", errors="ignore"); mp = {"token": TOKEN(tx), "righe": tx.count("\n") + 1, "giorni": int((time.time() - fm.stat().st_mtime) // 86400), "titoli": [x[3:].strip() for x in tx.splitlines() if x.startswith("## ")][:8]}
     except Exception: pass
-    return {"progetto": rad, "mappa": mp, "agenti": ag, "skill": sk, "mcp": mc, "hook": hook(rad), "istruzioni": ist, "plugin": plugin(),
+    try: analisi = PT.analizza(rad)[1]
+    except Exception: analisi = {"richieste": 0, "dal": ""}
+    return {"progetto": rad, "analisi": analisi, "mappa": mp, "agenti": ag, "skill": sk, "mcp": mc, "hook": hook(rad), "istruzioni": ist, "plugin": plugin(),
             "proposte": [x for x in pr if not x["rifiutata"]], "rifiutate": [x for x in pr if x["rifiutata"]]}
 
 

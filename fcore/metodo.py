@@ -1,7 +1,7 @@
 """Skill `plancia-metodo`: come affrontare ogni richiesta con il percorso piu corto e corretto (niente fronzoli, niente loop).
   plancia metodo                  mostra dove la installerebbe
   plancia metodo --scrivi         nel progetto: .claude/skills/plancia-metodo/ (letta da Claude Code e da Copilot CLI / VS Code)
-  plancia metodo --globale --scrivi   per tutti i progetti: ~/.claude/skills/ e ~/.copilot/skills/
+  plancia metodo --globale --scrivi   per tutti i progetti: ~/.claude/skills/ (la leggono sia Claude Code sia Copilot: una copia sola)
   plancia metodo --mostra         stampa la skill
 La skill pesa poco: l'agente vede solo la descrizione finche non serve."""
 import sys
@@ -13,7 +13,9 @@ SKILL = Path(__file__).resolve().parent.parent / "skills" / "plancia-metodo" / "
 
 
 def destinazioni(globale, agenti=("claude", "copilot")):
-    if globale: return [Path.home() / ("." + a) / "skills" / "plancia-metodo" for a in ("claude", "copilot") if a in agenti]
+    if globale:                                                         # ~/.claude/skills lo leggono Claude Code e Copilot: con "tutti e due" una copia sola, altrimenti VS Code la vede doppia
+        sc = ["claude"] if len(agenti) > 1 else [a for a in ("claude", "copilot") if a in agenti]
+        return [Path.home() / ("." + a) / "skills" / "plancia-metodo" for a in sc]
     return [lib.radice() / ".claude" / "skills" / "plancia-metodo"]
 
 
