@@ -66,6 +66,8 @@ try:
         pg.locator("button:has-text('GitHub Copilot (.github/skills)')").click(); check(".github/skills" in pg.inner_text("#v") and "<skills dir>" not in pg.inner_text("#v"), "Skill dal lavoro: si sceglie Copilot o Claude e il testo ha la cartella giusta")
         pg.locator("button:has-text('Claude Code (.claude/skills)')").click(); check("Skills folder: .claude/skills." in pg.inner_text("#v"), "Skill dal lavoro: scegliendo Claude la cartella cambia")
         pg.evaluate("stab='agenti';draw()"); check("si scrivono in modo diverso" in pg.inner_text("#v").lower(), "Agenti: spiega i due formati")
+        pg.evaluate("PR.progetti[0].oggi={richieste:4,modifiche:3,errori:0,non_provate:1,fallite:0};go('progetti')"); pg.wait_for_selector("text=Oggi in tutti i progetti", timeout=5000)
+        check("1 senza prova" in pg.inner_text("#v") and "4" in pg.inner_text("#v"), "Home: riepilogo del giorno con i progetti da controllare")
         pg.evaluate("go('salute')"); pg.wait_for_selector("text=Salute del progetto", timeout=5000); check("livello del progetto" in pg.inner_text("#v").lower() and "prossimo passo" in pg.inner_text("#v").lower(), "Salute: mostra il livello del progetto e il prossimo passo")
         check(pg.locator("#nav select option").count() >= 1, "menu Progetto sempre presente in alto")
         pg.evaluate("go('piano')"); pg.wait_for_selector("select.rqsel", timeout=5000)

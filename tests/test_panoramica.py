@@ -319,6 +319,7 @@ _nw = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(time.time() - 600))
 _rv = lambda i, ver: {"domanda": "d%d" % i, "inizio": _nw, "fine": _nw, "fonte": "copilot", "sessione": "s1", "finita": True, "attivita": [], "file": [], "errori": 0, "verifica": ver}
 _orig = _RV.tutte; _RV.tutte = lambda rad, n=40: [_rv(i, {"modifiche": 2, "stato": "manca"} if i == 0 else None) for i in range(16)]
 _sv = _PNV.scheda(str(_pv)); _RV.tutte = _orig
+v("scheda: riepilogo di oggi", _sv["oggi"] and _sv["oggi"]["richieste"] == 16 and _sv["oggi"]["non_provate"] == 1, _sv.get("oggi"))
 v("scheda: avviso 'non provato' e avviso 'chat lunga' (16 richieste)", [a["tipo"] for a in _sv["attenzione"]] == ["verifica", "lunga"] and _sv["recenti"][0]["verifica"] == "manca", _sv["attenzione"])
 _rc = lambda i, sid, f: {"domanda": "d", "inizio": _nw, "fine": _nw, "fonte": ("copilot" if sid == "a" else "claude"), "sessione": sid, "finita": False, "attivita": [], "file": f, "errori": 0}
 _RV.tutte = lambda rad, n=40: [_rc(0, "a", ["src/A.java", "x.py"]), _rc(1, "b", ["src/A.java"])]

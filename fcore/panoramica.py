@@ -322,7 +322,7 @@ def scheda(rad, soglia_token=None):
     stato = aperte[0]["stato"] if aperte else "inattivo"
     try: piano = stato_piano(rad, aperte)
     except Exception: piano = None
-    ultima = None; recenti = []
+    ultima = None; recenti = []; oggi = None
     try:                                                                  # l'ultima richiesta, anche di settimane fa: per capire al volo dove eri rimasto
         try: from . import richieste as RQ
         except ImportError: import richieste as RQ
@@ -342,7 +342,10 @@ def scheda(rad, soglia_token=None):
         if u0 and u0.get("finita") and u0.get("verifica") and u0["verifica"]["stato"] in ("manca", "fallita") and (time.time() - (RQ._ts(u0.get("fine") or u0.get("inizio")) or 0)) < 3 * 86400:
             v = u0["verifica"]
             att.append(("verifica", ("l'ultima richiesta ha modificato %d file (%s) e dopo non ha provato nulla: nessun test, build o controllo. Chiedi: \"esegui i test e dimmi il risultato\"" if v["stato"] == "manca" else "l'ultima richiesta ha modificato %d file (%s) e l'ultima prova e fallita: non darla per buona") % (v["modifiche"], u0.get("fonte") or "agente")))
-        lun = RQ.tutte(rad, 40); s0 = (lun or [{}])[0].get("sessione")
+        lun = RQ.tutte(rad, 60); s0 = (lun or [{}])[0].get("sessione")
+        t0 = time.mktime(time.strptime(time.strftime("%Y-%m-%d"), "%Y-%m-%d")); od = [x for x in lun if (RQ._ts(x.get("inizio")) or 0) >= t0]
+        oggi = {"richieste": len(od), "modifiche": len({f for x in od for f in (x.get("file") or [])}), "errori": sum(x.get("errori") or 0 for x in od),
+                "non_provate": sum(1 for x in od if x.get("finita") and (x.get("verifica") or {}).get("stato") == "manca"), "fallite": sum(1 for x in od if (x.get("verifica") or {}).get("stato") == "fallita")}
         rec = [x for x in lun if (time.time() - (RQ._ts(x.get("fine") or x.get("inizio")) or 0)) < 20 * 60 and x.get("file")]   # chat attive ora: due che toccano lo stesso file si pestano i piedi
         for i_, a_ in enumerate(rec):
             ov = next(((b_, set(a_["file"]) & set(b_["file"])) for b_ in rec[i_ + 1:] if b_.get("sessione") != a_.get("sessione") and set(a_["file"]) & set(b_["file"])), None)
@@ -354,7 +357,7 @@ def scheda(rad, soglia_token=None):
             att.append(("lunga", "questa chat ha %d richieste: piu e lunga, piu l'agente dimentica e sbaglia. Apri una chat nuova e scrivi: \"Leggi .factory/RIPRENDERE.md e continua da li\"" % n_ch))
         att.sort(key=lambda a: peso.get(a[0], 9))
     except Exception: pass
-    return {"piano": piano, "ultima": ultima, "recenti": recenti, "proposte": _n_proposte(rad), "radice": rad, "nome": Path(rad).name, "stato": stato, "stato_txt": NOMI[stato] if aperte else "nessun agente aperto", "sessioni": aperte[:4], "chiuse": [{k: s[k] for k in ("fonte", "id", "eta_txt", "domanda", "token_oggi")} for s in chiuse[:6]],
+    return {"piano": piano, "ultima": ultima, "recenti": recenti, "oggi": oggi, "proposte": _n_proposte(rad), "radice": rad, "nome": Path(rad).name, "stato": stato, "stato_txt": NOMI[stato] if aperte else "nessun agente aperto", "sessioni": aperte[:4], "chiuse": [{k: s[k] for k in ("fonte", "id", "eta_txt", "domanda", "token_oggi")} for s in chiuse[:6]],
             "processi": pr, "attenzione": [{"tipo": a, "testo": b} for a, b in att[:6]],
             "token_oggi": tok, "token_txt": _f(tok), "task": task, "plancia": (Path(rad) / ".factory").is_dir()}
 
