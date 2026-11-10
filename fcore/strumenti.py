@@ -43,6 +43,58 @@ def skill(rad):
     return out
 
 
+
+def _fm_agente(f):
+    """Frontmatter di un file agente (chiavi semplici ed elenchi, senza dipendenze) + corpo."""
+    try: t = f.read_text(encoding="utf-8", errors="ignore")
+    except Exception: return {}, ""
+    m = re.match(r"^﻿?---\s*\r?\n(.*?)\r?\n---\s*\r?\n?", t, re.S); d = {}; k = None
+    for l in (m.group(1).splitlines() if m else []):
+        if re.match(r"^\s+-\s+", l) and k: d.setdefault(k, []); d[k] = (d[k] if isinstance(d[k], list) else []) + [l.split("-", 1)[1].strip().strip("\"'")]; continue
+        if ":" in l and not l.startswith((" ", "\t")):
+            k, _, v = l.partition(":"); k = k.strip().lower(); v = v.strip()
+            if v.startswith("[") and v.endswith("]"): d[k] = [x.strip().strip("\"'") for x in v[1:-1].split(",") if x.strip()]
+            elif v in ("", "|", ">", ">-", "|-"): d[k] = ""
+            else: d[k] = v.strip("\"'")
+        elif k and isinstance(d.get(k), str) and l.strip(): d[k] = (d[k] + " " + l.strip()).strip()      # descrizione su piu righe
+    return d, (t[m.end():] if m else t)
+
+
+def agenti(rad):
+    """Agenti personalizzati (sotto-agenti di Claude Code, custom agent / chat mode di Copilot): cosa fa ognuno e cosa migliorare. Solo lettura dei file."""
+    h = Path.home(); r = Path(rad); out = []
+    posti = [("GitHub Copilot", "solo questo progetto", r / ".github" / "agents", "*.md"), ("GitHub Copilot", "solo questo progetto", r / ".github" / "chatmodes", "*.md"),
+             ("Claude Code", "solo questo progetto", r / ".claude" / "agents", "*.md"),
+             ("GitHub Copilot", "tutti i progetti", h / ".copilot" / "agents", "*.md"), ("Claude Code", "tutti i progetti", h / ".claude" / "agents", "*.md")]
+    for per, ambito, d, pat in posti:
+        for f in sorted(d.glob(pat)) if d.is_dir() else []:
+            if f.name.lower().startswith("readme"): continue
+            m, corpo = _fm_agente(f); nome = str(m.get("name") or re.sub(r"\.(agent|chatmode)$", "", f.stem))
+            desc = str(m.get("description") or "").strip(); tools = m.get("tools")
+            if isinstance(tools, str): tools = [x.strip() for x in tools.split(",") if x.strip()]
+            righe = [x.strip() for x in corpo.splitlines() if x.strip()]
+            titoli = [re.sub(r"^#+\s*", "", x) for x in righe if x.startswith("#")][:6]
+            intro = next((x for x in righe if not x.startswith(("#", "-", "*", "|", "```", "<"))), "")
+            tok = TOKEN(corpo); cons = []
+            if not desc: cons.append("Manca la descrizione: l'agente principale non sa quando chiamarlo. Aggiungi `description:` con una frase tipo \"Use when ...\".")
+            elif len(desc) < 40: cons.append("Descrizione molto corta: scrivi QUANDO va usato (es. \"Use when reviewing a pull request\"), cosi viene scelto al momento giusto.")
+            if not tools: cons.append("Puo usare tutti gli strumenti. Se deve solo leggere o analizzare, limita `tools:` (lettura e ricerca): e piu sicuro e sbaglia meno.")
+            elif len(tools) > 15: cons.append("Ha %d strumenti: tieni solo quelli che servono al suo compito." % len(tools))
+            if tok > 1500: cons.append("Istruzioni lunghe (~%d token, lette ogni volta che parte): sposta i dettagli in una skill e lascia qui ruolo, limiti e formato della risposta." % tok)
+            elif tok < 20: cons.append("Istruzioni quasi vuote: scrivi cosa deve fare, cosa NON deve fare e in che formato risponde.")
+            if tok >= 20 and not re.search(r"(?i)\b(output|return|report|respond|reply|format|rispond|restitu|riporta|elenca)", corpo): cons.append("Non dice in che formato deve rispondere: aggiungi una riga (es. \"Return: findings as a list with file:line\").")
+            out.append({"nome": nome, "per": per, "ambito": ambito, "descrizione": desc[:400], "intro": lib.redigi(intro, 220) if intro and intro != desc else "", "sezioni": titoli,
+                        "strumenti": tools or [], "modello": str(m.get("model") or ""), "token": tok, "file": str(f.relative_to(r)).replace("\\", "/") if r in f.parents else str(f).replace(str(h), "~"), "consigli": cons})
+    par = lambda a: set(re.findall(r"[a-z]{4,}", (a["nome"] + " " + a["descrizione"]).lower()))
+    for i, a in enumerate(out):                                          # doppioni e sovrapposizioni
+        for b in out[i + 1:]:
+            if a["per"] != b["per"]: continue
+            pa, pb = par(a), par(b)
+            if a["nome"].lower() == b["nome"].lower(): a["consigli"].append("Stesso nome di %s: l'agente non sa quale scegliere, tienine uno." % b["file"]); b["consigli"].append("Stesso nome di %s: tienine uno." % a["file"])
+            elif len(pa) > 5 and len(pb) > 5 and len(pa & pb) / float(len(pa | pb)) > 0.6: a["consigli"].append("Fa quasi la stessa cosa di “%s”: valuta di unirli." % b["nome"]); b["consigli"].append("Fa quasi la stessa cosa di “%s”: valuta di unirli." % a["nome"])
+    return out
+
+
 def mcp(rad):
     out = []
     def add(dove, d, chiave):
@@ -120,7 +172,7 @@ def _comandi_build(rad):
     return [(k.strip(), v) for k, v in re.findall(r"(?m)^- ([^`]+?): `([^`]+)`", t) if re.search(r"\b(build|test)\b", k)], t
 
 
-def proposte(rad, sk, ist, mc, tutte=False):
+def proposte(rad, sk, ist, mc, tutte=False, ag=()):
     """Suggerimenti in parole semplici. Ognuno ha: id stabile, titolo, perche, ambito (tutti i progetti / solo questo) e un'azione:
     'crea' = la Plancia lo fa da sola con un clic; 'prompt' = testo pronto da incollare in chat; 'info' = solo da sapere."""
     p = []; r = Path(rad); nomi = [s["nome"] for s in sk]; nome_p = r.name
@@ -170,6 +222,10 @@ def proposte(rad, sk, ist, mc, tutte=False):
         p.append({"id": "passa-al-plugin", "titolo": "Questo progetto ha ancora la vecchia installazione", "ambito": "solo questo progetto",
                   "perche": "Hook, regola e strumenti scritti dentro il progetto (AGENTS.md, .github/hooks, .claude/settings.json, .vscode/mcp.json) dalla versione classica o dalla vecchia Lavagna. Col plugin non servono piu e possono puntare a programmi che non esistono, cosi la Plancia non vede niente.",
                   "azione": {"tipo": "crea", "testo": "Tolgo dal progetto solo le parti della Plancia/Lavagna: il resto dei file resta com'e."}})
+    if ag:
+        p.append({"id": "agenti-revisione", "titolo": "Fai rivedere i tuoi %d agenti all'AI" % len(ag), "ambito": "solo questo progetto",
+                  "perche": "Qui sopra vedi i controlli automatici (gratis). Per un giudizio vero su ruoli, sovrapposizioni e istruzioni serve che l'agente li legga: costa qualche migliaio di token, una volta.",
+                  "azione": {"tipo": "prompt", "testo": "Review my custom agents: %s. For each one: what it does in one line, when it should be used, what overlaps with the others, missing limits (tools, what it must NOT do, output format), and max 3 concrete improvements with the exact text to add or remove. Then tell me if any agent is useless or missing for this project. Do not edit files: report only." % ", ".join(a["file"] for a in ag[:12])}})
     rif = _rifiutate(rad)
     for x in p: x["rifiutata"] = x["id"] in rif
     return p if tutte else [x for x in p if not x["rifiutata"]]
@@ -244,8 +300,15 @@ def _escludi_da_git(rad, voce):
 def tutto(rad=None):
     rad = str(rad or lib.radice()); sk, mc, ist = skill(rad), mcp(rad), istruzioni(rad)
     for s in sk: s["ambito"] = _ambito(s["dove"])
-    pr = proposte(rad, sk, ist, mc, tutte=True)
-    return {"progetto": rad, "skill": sk, "mcp": mc, "hook": hook(rad), "istruzioni": ist, "plugin": plugin(),
+    ag = agenti(rad); pr = proposte(rad, sk, ist, mc, tutte=True, ag=[a for a in ag if a["ambito"].startswith("solo")])
+    mp = None
+    try:
+        import time
+        fm = Path(rad) / ".factory" / "CONTESTO.md"
+        if fm.exists():
+            tx = fm.read_text(encoding="utf-8", errors="ignore"); mp = {"token": TOKEN(tx), "righe": tx.count("\n") + 1, "giorni": int((time.time() - fm.stat().st_mtime) // 86400), "titoli": [x[3:].strip() for x in tx.splitlines() if x.startswith("## ")][:8]}
+    except Exception: pass
+    return {"progetto": rad, "mappa": mp, "agenti": ag, "skill": sk, "mcp": mc, "hook": hook(rad), "istruzioni": ist, "plugin": plugin(),
             "proposte": [x for x in pr if not x["rifiutata"]], "rifiutate": [x for x in pr if x["rifiutata"]]}
 
 

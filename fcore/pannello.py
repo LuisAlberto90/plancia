@@ -12,6 +12,7 @@ try: from . import store as lib, piano_modello as M, task as T, sessioni as S, p
 except ImportError: import store as lib, piano_modello as M, task as T, sessioni as S, panoramica as PN, richieste as RQ
 import threading
 BLOCCO = threading.Lock()
+_PAN = {"t": 0, "d": None}                                           # panoramica: riusata per ~1 s
 
 QUI = Path(__file__).resolve().parent
 SOGLIA_FERMO_MIN = 30
@@ -202,7 +203,9 @@ def main(a):
             q = parse_qs(u.query).get("p", [""])[0]
             if u.path == "/api/panoramica":
                 with BLOCCO:
-                    try: d = PN.tutte()
+                    try:
+                        if time.time() - _PAN["t"] > 1.2: _PAN["d"] = PN.tutte(); _PAN["t"] = time.time()
+                        d = json.loads(json.dumps(_PAN["d"]))
                     except Exception:
                         import traceback; tb = traceback.format_exc(); sys.stderr.write(tb); d = {"aggiornato": "", "progetti": [], "conteggi": {}, "errore_pannello": tb[-2500:]}
                 if o.token:

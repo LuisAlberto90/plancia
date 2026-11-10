@@ -257,4 +257,14 @@ x = subprocess.run([sys.executable, F, "diagnosi"], capture_output=True, text=Tr
 import zipfile as _zf
 nomi = _zf.ZipFile(zf[-1]).namelist() if zf else []
 v("diagnosi: zip con diagnosi, struttura e piani, senza sorgenti", "diagnosi.json" in nomi and "struttura.txt" in nomi and not any(n.endswith((".py", ".java")) for n in nomi), nomi)
+# agenti personalizzati e ultime richieste
+pa = lav / "agenti-demo"; (pa / ".github" / "agents").mkdir(parents=True); (pa / ".claude" / "agents").mkdir(parents=True); (pa / ".factory").mkdir()
+(pa / ".github" / "agents" / "reviewer.agent.md").write_text("---\ndescription: Use when reviewing a diff for bugs and security before merge.\ntools: ['search', 'read']\n---\n# Reviewer\nReview the change. Never edit files. Return findings as a list with file:line.\n", encoding="utf-8")
+(pa / ".claude" / "agents" / "tester.md").write_text("---\nname: tester\ndescription: tests\n---\nWrite tests.\n", encoding="utf-8")
+sys.path.insert(0, str(Path(F).parent))
+from fcore import strumenti as _ST
+ag = {a["nome"]: a for a in _ST.agenti(str(pa))}
+v("agenti: trovati quelli di Copilot e di Claude con descrizione e strumenti", set(ag) == {"reviewer", "tester"} and ag["reviewer"]["per"] == "GitHub Copilot" and ag["reviewer"]["strumenti"] == ["search", "read"] and ag["tester"]["per"] == "Claude Code", ag)
+v("agenti: quello fatto bene non ha consigli, quello vago si", not ag["reviewer"]["consigli"] and len(ag["tester"]["consigli"]) >= 2, ag)
+v("agenti: proposta di revisione con i file", any(x["id"] == "agenti-revisione" and "reviewer.agent.md" in x["azione"]["testo"] for x in _ST.tutto(str(pa))["proposte"]))
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

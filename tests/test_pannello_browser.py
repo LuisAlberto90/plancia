@@ -35,11 +35,11 @@ try:
         b = pw.chromium.launch(); pg = b.new_page(); errori = []
         pg.on("pageerror", lambda e: errori.append(str(e) + " @ " + (e.stack or "")[:300]))
         richieste = []; pg.on("request", lambda r: richieste.append(r.url))
-        pg.goto(base + "?prove=1#progetti"); pg.wait_for_selector("button:has-text('Apri il progetto')", timeout=8000)
+        pg.goto(base + "?prove=1#progetti"); pg.wait_for_selector("button:has-text('Piano e cosa ha fatto')", timeout=8000)
         check(proj.name in pg.inner_text("#v"), "Progetti mostra il progetto %s" % proj.name)
         if len(sys.argv) == 1:
-            check("Piano" in pg.inner_text(".pbox") and pg.locator("button:has-text('Vedi il piano')").count() == 1, "la scheda del progetto dice che il piano e pronto")
-        pg.click("button:has-text('Apri il progetto')"); pg.wait_for_timeout(1500)
+            check("Piano" in pg.inner_text(".pbox") and pg.locator(".pbox .pbar").count() >= 1, "la scheda del progetto dice che il piano e pronto")
+        pg.click("button:has-text('Piano e cosa ha fatto')"); pg.wait_for_timeout(1500)
         st = [u for u in richieste if "api/state" in u]
         check(st and "p=" in st[-1] and "p=&" not in st[-1] + "&", "Dettagli passa il progetto: %s" % (st[-1][-80:] if st else "nessuna chiamata"))
         check(proj.name in pg.inner_text("#t"), "titolo = progetto (%s)" % pg.inner_text("#t"))
@@ -62,7 +62,7 @@ try:
         check(any("api/prova" in u and "p=" in u for u in richieste), "Verifica chiama il server con il progetto")
         check((proj / ".factory" / "prove.jsonl").exists(), "l'esito della verifica e salvato nel progetto")
         # percorso Windows: le barre rovesciate non devono sparire (era il bug di Dettagli)
-        pg.evaluate("go('progetti')"); pg.wait_for_selector("button:has-text('Apri il progetto')")
+        pg.evaluate("go('progetti')"); pg.wait_for_selector("button:has-text('Piano e cosa ha fatto')")
         pg.evaluate("""()=>{const b=document.querySelector("button[data-r]");b.dataset.r='C:\\\\Project\\\\DemoApp';b.click()}""")
         pg.wait_for_timeout(300)
         check(pg.evaluate("proj") == "C:\\Project\\DemoApp", "percorso Windows intatto: %r" % pg.evaluate("proj"))

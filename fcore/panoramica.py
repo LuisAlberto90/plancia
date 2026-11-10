@@ -249,7 +249,11 @@ def scheda(rad, soglia_token=None):
         sess.append(s)
     try:                                                              # agenti senza trascrizione (chat di VS Code): stato dagli eventi degli hook
         from . import richieste as RQ
-        for r in RQ.da_eventi(eventi if len(eventi) >= 300 else lib.leggi_righe("eventi.jsonl", 2000)):
+        ult_r = {}
+        for r in RQ.da_eventi(eventi if len(eventi) >= 300 else lib.leggi_righe("eventi.jsonl", 2000)):       # una chat = una riga: conta la sua richiesta piu recente
+            k = (r["fonte"], r["sessione"])
+            if k not in ult_r or str(r["inizio"] or "") >= str(ult_r[k]["inizio"] or ""): ult_r[k] = r
+        for r in ult_r.values():
             a = r["attivita"][-1] if r["attivita"] else None; fine = _ts_utc(r["fine"]) or time.time(); e = int(time.time() - fine)
             pend = a and a["esito"] == "in corso" and a["tipo"] != "sotto-agente"   # un sotto-agente che gira non e un permesso
             chiede = pend and a["tipo"] in ("comando", "web") and not a.get("bg")          # in VS Code questi passano dal tuo "Allow"
@@ -302,17 +306,22 @@ def scheda(rad, soglia_token=None):
     stato = aperte[0]["stato"] if aperte else "inattivo"
     try: piano = stato_piano(rad, aperte)
     except Exception: piano = None
-    ultima = None
+    ultima = None; recenti = []
     try:                                                                  # l'ultima richiesta, anche di settimane fa: per capire al volo dove eri rimasto
         try: from . import richieste as RQ
         except ImportError: import richieste as RQ
-        u = (RQ.tutte(rad, 1) or [None])[0]
+        rq3 = RQ.tutte(rad, 3); u = (rq3 or [None])[0]
+        for x in rq3:
+            ep = RQ._ts(x.get("fine") or x.get("inizio")) or 0; az = x.get("attivita") or []
+            recenti.append({"domanda": lib.redigi_testo((x.get("domanda") or "").strip().split("\n")[0], 160), "fonte": x.get("fonte"), "finita": bool(x.get("finita")), "eta_txt": _eta(int(time.time() - ep)) if ep else "",
+                            "quando": time.strftime("%d/%m %H:%M", time.localtime(ep)) if ep else "", "modifiche": len(x.get("file") or []), "errori": x.get("errori") or 0, "azioni": len(az),
+                            "ora": ({"tipo": az[-1].get("tipo"), "cosa": lib.redigi(str(az[-1].get("cosa") or ""), 110), "esito": az[-1].get("esito")} if az and not x.get("finita") else None)})
         if u:
             ep = RQ._ts(u.get("fine") or u.get("inizio")) or 0
             ultima = {"domanda": lib.redigi_testo(u.get("domanda") or "", 300), "fonte": u.get("fonte"), "finita": bool(u.get("finita")), "eta_txt": _eta(int(time.time() - ep)) if ep else "",
                       "quando": time.strftime("%d/%m %H:%M", time.localtime(ep)) if ep else "", "modifiche": len(u.get("file") or []), "errori": u.get("errori") or 0, "risposta": lib.redigi_testo(u.get("risposta") or "", 1200)}
     except Exception: pass
-    return {"piano": piano, "ultima": ultima, "radice": rad, "nome": Path(rad).name, "stato": stato, "stato_txt": NOMI[stato] if aperte else "nessun agente aperto", "sessioni": aperte[:4], "chiuse": [{k: s[k] for k in ("fonte", "id", "eta_txt", "domanda", "token_oggi")} for s in chiuse[:6]],
+    return {"piano": piano, "ultima": ultima, "recenti": recenti, "radice": rad, "nome": Path(rad).name, "stato": stato, "stato_txt": NOMI[stato] if aperte else "nessun agente aperto", "sessioni": aperte[:4], "chiuse": [{k: s[k] for k in ("fonte", "id", "eta_txt", "domanda", "token_oggi")} for s in chiuse[:6]],
             "processi": pr, "attenzione": [{"tipo": a, "testo": b} for a, b in att[:6]],
             "token_oggi": tok, "token_txt": _f(tok), "task": task, "plancia": (Path(rad) / ".factory").is_dir()}
 
@@ -370,7 +379,7 @@ def stato_piano(rad, aperte):
         st = [s for s in ult.get("steps", [])]
         c = lambda *k: sum(M.canon(s.get("stato")) in k for s in st)
         return {"stato": "pronto", "titolo": ult.get("task", "")[:90], "passi": len(st), "fatti": c("FATTO", "VERIFICATO", "NON_NECESSARIO"),
-                "in_corso": c("IN_CORSO"), "bloccati": c("BLOCCATO"), "voto": (ult.get("qualita") or {}).get("voto"), "eta_txt": _eta(int(time.time() - ue))}
+                "in_corso": c("IN_CORSO"), "passo_ora": next(("%s · %s" % (s.get("id"), str(s.get("testo") or "")[:80]) for s in st if M.canon(s.get("stato")) == "IN_CORSO"), ""), "bloccati": c("BLOCCATO"), "voto": (ult.get("qualita") or {}).get("voto"), "eta_txt": _eta(int(time.time() - ue))}
     if tp and lavora and time.time() - tp < 20 * 60: return {"stato": "in_costruzione", "eta_txt": _eta(int(time.time() - tp))}
-    if tp: return {"stato": "nessuno", "precedente": ult.get("task", "")[:60] if ult else None}
+    if tp: return {"stato": "nessuno", "precedente": ult.get("task", "")[:60] if ult else None, "precedente_eta": _eta(int(time.time() - ue)) if ult else ""}
     return None

@@ -40,7 +40,11 @@ def prepara(rad):
 
 
 def mappa_se_manca(rad):
-    if (rad / ".factory" / "CONTESTO.md").exists(): return
+    f = rad / ".factory" / "CONTESTO.md"
+    try:
+        import time
+        if f.exists() and time.time() - f.stat().st_mtime < 7 * 86400: return     # la mappa si rifa da sola una volta a settimana (senza AI: zero token)
+    except Exception: return
     from fcore import contesto
     import contextlib, io
     with contextlib.redirect_stdout(io.StringIO()):

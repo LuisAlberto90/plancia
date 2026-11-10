@@ -25,7 +25,10 @@ def _plugin_sessione(d, ev, rad, store):
     try: viste = json.loads(f.read_text(encoding="utf-8"))
     except Exception: viste = []
     if str(ev).lower() == "sessionstart": auto.avvia_pannello(); auto.mappa_se_manca(rad); auto.togli_vecchia_skill()
-    if sid and sid in viste: return
+    if sid and sid in viste:                                              # messaggi successivi della stessa chat: promemoria minimo (~30 token), la regola intera l'ha gia
+        if str(ev).lower() != "sessionstart" and (store.config().get("piano") or "obbligatorio") == "obbligatorio":
+            print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": "[Plancia] New message. Unless it is a pure question: same work as before -> plancia_piano_aggiungi; different work -> plancia_piano_nuovo with \"nuovo\": true. Plan before reading files."}}, ensure_ascii=False))
+        return
     if str(ev).lower() != "sessionstart": auto.avvia_pannello(); auto.mappa_se_manca(rad); auto.togli_vecchia_skill()
     try: f.parent.mkdir(parents=True, exist_ok=True); f.write_text(json.dumps((viste + [sid])[-50:]), encoding="utf-8")
     except Exception: pass
