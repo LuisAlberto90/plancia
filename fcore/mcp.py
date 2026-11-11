@@ -4,7 +4,7 @@ Strumenti: stato, task, passo, richiesta, handoff, verifica_policy. VERIFICATO n
 import contextlib, io, json, os, sys, tempfile
 from pathlib import Path
 
-VERSIONE = "0.38.0"
+VERSIONE = "0.38.1"
 S = {"type": "string"}
 PIANO_TOOLS = [
     {"name": "plancia_piano_nuovo", "description": "FIRST action for any request that is not a pure question (sub-agents: never). Write the plan the user follows as a graph: each step one action on an exact file/module/command from .factory/CONTESTO.md, with a check. 3-5 steps for analysis, 6-12 for a change (baseline tests before changing, one step per file, callers, docs, verification, summary). Independent parts = parallel branches.",
