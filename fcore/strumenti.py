@@ -31,8 +31,20 @@ def _vscode_user():
     return Path.home() / ".config" / "Code" / "User"
 
 
+def _usi_skill(rad):
+    """Quante richieste di questo progetto hanno usato ogni skill (dai transcript, zero token)."""
+    u = {}
+    try:
+        try: from . import richieste as RQ
+        except ImportError: import richieste as RQ
+        for r in RQ.tutte(rad, 5000):
+            for n in r.get("skills") or []: u[n] = u.get(n, 0) + 1
+    except Exception: pass
+    return u
+
+
 def skill(rad):
-    h = Path.home(); out = []
+    h = Path.home(); out = []; usi = _usi_skill(rad)
     posti = [("progetto", Path(rad) / ".claude" / "skills"), ("progetto", Path(rad) / ".github" / "skills"), ("progetto", Path(rad) / ".agents" / "skills"),
              ("tutti i progetti (Claude)", h / ".claude" / "skills"), ("tutti i progetti (Copilot)", h / ".copilot" / "skills")]
     for p in list((h / ".copilot" / "installed-plugins").glob("*/*/skills")) + list((h / ".copilot" / "installed-plugins").glob("*/skills")) + list((h / ".claude" / "plugins" / "cache").glob("*/*/*/skills")) + _vscode_plugin_dirs("skills"):
@@ -47,7 +59,7 @@ def skill(rad):
                     corpo = re.sub(r"^﻿?---.*?\n---\s*", "", f.read_text(encoding="utf-8", errors="ignore")[:200000], count=1, flags=re.S)
                     cons = PRV.valuta_skill(m.get("name") or "", m.get("description") or "", corpo, f.parent.name)
                 except Exception: cons = []
-            out.append({"nome": m.get("name") or f.parent.name, "descrizione": (m.get("description") or "")[:240], "dove": dove, "file": str(f), "consigli": cons})
+            out.append({"nome": m.get("name") or f.parent.name, "descrizione": (m.get("description") or "")[:240], "token": max(1, len((m.get("name") or "") + (m.get("description") or "")) // 4), "usi": usi.get(m.get("name") or f.parent.name, 0) + (usi.get(f.parent.name, 0) if f.parent.name != (m.get("name") or f.parent.name) else 0), "dove": dove, "file": str(f), "consigli": cons})
     return out
 
 
@@ -234,6 +246,17 @@ def proposte(rad, sk, ist, mc, tutte=False, ag=()):
         p.append({"id": "mcp-troppi", "titolo": "%d server MCP accesi" % len(mc), "ambito": "solo questo progetto",
                   "perche": "Ogni server MCP aggiunge la descrizione dei suoi strumenti a ogni domanda: piu sono, piu consumi e piu l'agente si confonde.",
                   "azione": {"tipo": "info", "testo": "Spegni quelli che non usi in questo progetto (in VS Code: icona strumenti nella chat, oppure .vscode/mcp.json)."}})
+    try:
+        try: from . import richieste as _RQ
+        except ImportError: import richieste as _RQ
+        nr = len(_RQ.tutte(rad, 5000))
+    except Exception: nr = 0
+    mai = [x for x in sk if not x["dove"].startswith("plugin") and not x.get("usi") and x["nome"] != "plancia-metodo"]
+    if nr >= 10 and mai:
+        tk = sum(x["token"] for x in mai)
+        p.append({"id": "skill-mai-usate", "titolo": "%d skill non le ha mai usate nessuna delle tue %d richieste (~%d token fissi a ogni chat)" % (len(mai), nr, tk), "ambito": "solo questo progetto",
+                  "perche": "L'agente legge nome e descrizione di ogni skill a inizio chat anche se poi non la usa mai: e un costo fisso. Se la skill non scatta, o la descrizione non dice quando usarla, o non ti serve.",
+                  "azione": {"tipo": "info", "testo": "Mai usate finora: " + ", ".join(x["nome"] for x in mai[:8]) + ".\nOppure riscrivi la descrizione con le parole che usi tu nelle richieste, oppure cancella la skill."}})
     cm, ctx = _comandi_build(rad)
     if cm and not any(s["nome"].endswith("-build-test") for s in sk if s["dove"] == "progetto"):
         p.append({"id": "skill-build-test", "scegli_agente": True, "titolo": "Comandi di build e test sempre pronti", "ambito": "solo questo progetto",

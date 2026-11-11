@@ -63,9 +63,28 @@ def _somma(r, cwd, n, i):
         f = f.replace("\\", "/"); t = r["righe"].setdefault(f, [0, 0]); t[0] += a; t[1] += d
 
 
+def _skill(r, n, i):
+    """L'agente ha usato una skill? (strumento Skill, oppure ha letto skills/<nome>/SKILL.md). Nome in r['skills']."""
+    try:
+        nome = ""
+        if str(n).lower() == "skill" and isinstance(i, dict): nome = str(i.get("skill") or i.get("name") or "")
+        else:
+            m = re.search(r"skills[/\\]([^/\\]+)[/\\]SKILL\.md", str((i or {}).get("file_path") or (i or {}).get("path") or "") if isinstance(i, dict) else "", re.I)
+            nome = m.group(1) if m else ""
+        nome = nome.split(":")[-1].strip()[:60]
+        if nome and nome not in r["skills"]: r["skills"].append(nome)
+    except Exception: pass
+
+
+def _mod(r, nome, lavoro, riletti, out):
+    """Somma i token di questa chiamata al modello che li ha prodotti (nome vuoto = non dichiarato)."""
+    n = str(nome or "").strip()[:60] or "?"
+    v = r["modelli"].setdefault(n, [0, 0, 0]); v[0] += int(lavoro or 0); v[1] += int(riletti or 0); v[2] += int(out or 0)
+
+
 def _nuova(domanda, ts, fonte, sid):
     return {"domanda": lib.redigi_testo(domanda, 20000), "inizio": ts, "fine": ts, "fonte": fonte, "sessione": sid, "token_lavoro": 0, "token_riletti": 0, "ragionamento": 0, "token_in": 0, "token_out": 0, "token_scritti": 0,
-            "strumenti": {}, "file": [], "comandi": [], "errori": 0, "sotto_agenti": 0, "risposta": "", "rami": None, "attivita": [], "finita": False, "_id": {}, "_passo": None, "piano_scritto": False, "ambiente": [], "righe": {}}
+            "strumenti": {}, "file": [], "comandi": [], "errori": 0, "sotto_agenti": 0, "risposta": "", "rami": None, "attivita": [], "finita": False, "_id": {}, "_passo": None, "piano_scritto": False, "ambiente": [], "righe": {}, "modelli": {}, "skills": []}
 
 
 PROVA = re.compile(r"(?i)\b(pytest|jest|karma|vitest|unittest|run_tests|mvnw?(\.cmd)?\b.*\b(test|verify|package|install|compile)|gradlew?(\.bat)?\s+.*\b(test|build|check)|npm\s+(run\s+)?(test|build|lint)|pnpm\s+(run\s+)?(test|build|lint)|yarn\s+(test|build|lint)|ng\s+(test|build|lint)|tsc|ruff|flake8|mypy|eslint|dotnet\s+(test|build)|cargo\s+(test|build|check)|go\s+(test|build|vet)|make\s+(test|check|build)|python\S*\s+\S*tests?\S*)\b")
@@ -196,13 +215,14 @@ def da_claude(f):
             visti.add(mid); r["token_lavoro"] += u.get("input_tokens", 0) + u.get("output_tokens", 0) + u.get("cache_creation_input_tokens", 0)
             r["token_in"] += u.get("input_tokens", 0); r["token_out"] += u.get("output_tokens", 0); r["token_scritti"] += u.get("cache_creation_input_tokens", 0)
             r["token_riletti"] += u.get("cache_read_input_tokens", 0); r["ragionamento"] += (u.get("output_tokens_details") or {}).get("thinking_tokens", 0)
+            _mod(r, m.get("model"), u.get("input_tokens", 0) + u.get("cache_creation_input_tokens", 0), u.get("cache_read_input_tokens", 0), u.get("output_tokens", 0))
         usa = False
         for b in c if isinstance(c, list) else []:
             if not isinstance(b, dict): continue
             if b.get("type") == "text" and b.get("text", "").strip(): r["risposta"] = b["text"]
             if b.get("type") != "tool_use": continue
             usa = True; n = b.get("name", "?"); i = b.get("input") or {}; r["strumenti"][n] = r["strumenti"].get(n, 0) + 1
-            tp, cosa = _azione(n, i, d.get("cwd")); _somma(r, d.get("cwd"), n, i)
+            tp, cosa = _azione(n, i, d.get("cwd")); _somma(r, d.get("cwd"), n, i); _skill(r, n, i)
             if tp == "plancia": _segna(r, cosa); continue
             if n in ("Bash", "bash", "shell"):
                 for mk in MARCATORE.finditer(i.get("command") or ""): _segna(r, mk.group(0))    # `cd x; plancia passo D; pytest` -> il resto e del passo D
@@ -227,7 +247,7 @@ def da_claude(f):
 def da_copilot(f):
     k = (f, os.path.getmtime(f), os.path.getsize(f))
     if k in _cache: return _cache[k]
-    sid = os.path.basename(os.path.dirname(f))[:8]; out, r, rami, subs = [], None, S.Rami(), set()
+    sid = os.path.basename(os.path.dirname(f))[:8]; out, r, rami, subs = [], None, S.Rami(), set(); cur_mod = ""
     for l in open(f, encoding="utf-8", errors="replace"):
         try: d = json.loads(l)
         except Exception: continue
@@ -237,6 +257,8 @@ def da_copilot(f):
                 r["sotto_agenti"] += 1; r["attivita"].append({"tipo": "sotto-agente", "cosa": lib.redigi(str(x.get("content") or ""), 90), "esito": "ok", "ts": ts, "passo": r["_passo"]}); continue
             if r: out.append(_chiudi(r, rami))
             r = _nuova(str(x.get("content") or ""), ts, "copilot", sid); subs.clear(); continue
+        if t in ("session.start", "session.model_change", "session.resume"):
+            cur_mod = str(x.get("selectedModel") or x.get("newModel") or x.get("model") or cur_mod)
         if t in ("subagent.started", "subagent.start"): subs.add(x.get("toolCallId") or x.get("agentId") or len(subs)); continue
         if t in ("subagent.completed", "subagent.failed", "subagent.end"): subs.discard(x.get("toolCallId") or x.get("agentId")); continue
         if r is None: continue
@@ -247,7 +269,7 @@ def da_copilot(f):
             if isinstance(a, str):
                 try: a = json.loads(a)
                 except Exception: a = {"command": a}
-            tp, cosa = _azione(n, a, None); _somma(r, None, n, a)
+            tp, cosa = _azione(n, a, None); _somma(r, None, n, a); _skill(r, n, a)
             if tp == "plancia": _segna(r, cosa); continue
             if tp == "sotto-agente": subs.add(x.get("toolCallId"))
             if tp: r["_id"][x.get("toolCallId")] = len(r["attivita"]); r["attivita"].append({"tipo": tp, "cosa": cosa, "esito": "in corso", "ts": ts, "passo": r["_passo"]}); r["finita"] = False
@@ -265,6 +287,7 @@ def da_copilot(f):
             u = x.get("usage") or {}; r["token_lavoro"] += u.get("inputTokens", 0) + u.get("outputTokens", 0) + u.get("cacheWriteTokens", 0)
             r["token_in"] += u.get("inputTokens", 0); r["token_out"] += u.get("outputTokens", 0); r["token_scritti"] += u.get("cacheWriteTokens", 0)
             r["token_riletti"] += u.get("cacheReadTokens", 0); r["ragionamento"] += u.get("reasoningTokens", 0)
+            _mod(r, x.get("model") or u.get("model") or d.get("model") or cur_mod, u.get("inputTokens", 0) + u.get("cacheWriteTokens", 0), u.get("cacheReadTokens", 0), u.get("outputTokens", 0))
     if r: out.append(_chiudi(r, rami))
     _cache[k] = out
     return out

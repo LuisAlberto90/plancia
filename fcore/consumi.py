@@ -13,6 +13,15 @@ _C = {}
 TOP = 5
 
 
+def nome_modello(n):
+    """Nome leggibile: toglie prefissi e data finale (claude-sonnet-4-5-20250929 -> claude-sonnet-4-5); vuoto -> 'non dichiarato'."""
+    import re
+    n = str(n or "").strip()
+    if n in ("", "?"): return "non dichiarato"
+    n = re.sub(r"^(copilot|github)[/:]", "", n, flags=re.I)
+    return re.sub(r"-20\d{6}$", "", n)
+
+
 def _taglio(giorni):
     """Data (AAAA-MM-GG, ora locale) da cui contare: 0 = tutto, 1 = solo oggi, N = ultimi N giorni compreso oggi."""
     if not giorni: return ""
@@ -37,7 +46,7 @@ def peso_plancia(rad, sessioni, richieste):
     chiamate = 0
     try:
         f = Path(rad) / ".factory" / "eventi.jsonl"
-        if f.is_file(): chiamate = sum(1 for l in f.read_text(encoding="utf-8", errors="replace").splitlines()[-20000:] if '"strumento": "plancia_' in l or '"strumento":"plancia_' in l)
+        if f.is_file(): chiamate = sum(1 for l in f.read_text(encoding="utf-8", errors="replace").splitlines()[-20000:] if "plancia_piano" in l or "plancia_passo" in l)
     except Exception: pass
     iniettato = sessioni * (regola + skill) + max(0, richieste - sessioni) * prome
     return {"regola": regola, "promemoria": prome, "skill": skill, "schema": schema, "schema_pieno": schema_pieno, "chiamate": chiamate,
@@ -52,9 +61,9 @@ def _progetto(rad, da):
     try: vs = VC.richieste(rad)
     except Exception: vs = []
     if vs: rich = [r for r in rich if r.get("fonte") != "vscode"] + [{"inizio": v["inizio"], "fonte": "vscode", "domanda": v["domanda"], "token_in": v.get("token_in", 0), "token_out": v.get("token_out", 0), "token_lavoro": v.get("token_in", 0) + v.get("token_out", 0),
-                                                                      "ragionamento": v.get("ragionamento", 0), "ctx": v.get("ctx", 0), "ctx_max": v.get("ctx_max", 0), "dettaglio": v.get("dettaglio") or [], "stimato": v["stimato"], "sessione": "vs"} for v in vs]
+                                                                      "ragionamento": v.get("ragionamento", 0), "modelli": {v.get("modello") or "?": [v.get("token_in", 0) + v.get("token_out", 0), 0, v.get("token_out", 0)]}, "ctx": v.get("ctx", 0), "ctx_max": v.get("ctx_max", 0), "dettaglio": v.get("dettaglio") or [], "stimato": v["stimato"], "sessione": "vs"} for v in vs]
     p = {"radice": str(rad), "nome": Path(rad).name, "richieste": 0, "misurate": 0, "non_misurabili": 0, "stimate": 0, "lavoro": 0, "riletti": 0, "ragionamento": 0,
-         "ingresso": 0, "risposte": 0, "scritti": 0, "stima_lavoro": 0, "contesto": None, "fonti": {}, "giorni": {}, "top": [], "ultimo": ""}
+         "ingresso": 0, "risposte": 0, "scritti": 0, "stima_lavoro": 0, "contesto": None, "modelli": {}, "piani": 0, "skills_usate": {}, "fonti": {}, "giorni": {}, "top": [], "ultimo": ""}
     sess = set()
     for r in rich:
         g = str(r.get("inizio") or "")[:10]
@@ -74,14 +83,20 @@ def _progetto(rad, da):
         p["lavoro"] += lav; p["riletti"] += ril; p["ragionamento"] += rag
         p["ingresso"] += int(r.get("token_in") or 0); p["risposte"] += int(r.get("token_out") or 0); p["scritti"] += int(r.get("token_scritti") or 0)
         if stim: p["stima_lavoro"] += lav
+        mm = r.get("modelli") or {}
+        for nm, (a1, a2, a3) in (mm.items() if mm else [("?", (lav, ril, int(r.get("token_out") or 0)))]):
+            m0 = p["modelli"].setdefault(nome_modello(nm), {"modello": nome_modello(nm), "richieste": 0, "lavoro": 0, "riletti": 0, "risposte": 0}); m0["richieste"] += 1; m0["lavoro"] += a1; m0["riletti"] += a2; m0["risposte"] += a3
+        if r.get("piano_scritto"): p["piani"] += 1
+        for sk in r.get("skills") or []: p["skills_usate"][sk] = p["skills_usate"].get(sk, 0) + 1
         sess.add(r.get("sessione") or g)
         ff = p["fonti"].setdefault(f, {"richieste": 0, "misurate": 0, "lavoro": 0, "riletti": 0, "stimate": 0}); ff["richieste"] += 1; ff["misurate"] += 1 if mis and not stim else 0; ff["stimate"] += 1 if stim else 0; ff["lavoro"] += lav; ff["riletti"] += ril
         gg = p["giorni"].setdefault(g, {"giorno": g, "richieste": 0, "lavoro": 0}); gg["richieste"] += 1; gg["lavoro"] += lav
-        if mis: p["top"].append({"domanda": (r.get("domanda") or "").strip().split("\n")[0][:110], "lavoro": lav, "riletti": ril, "inizio": str(r.get("inizio") or "")[:16].replace("T", " "), "fonte": f, "stimato": stim})
+        if mis: p["top"].append({"domanda": (r.get("domanda") or "").strip().split("\n")[0][:110], "lavoro": lav, "riletti": ril, "inizio": str(r.get("inizio") or "")[:16].replace("T", " "), "fonte": f, "stimato": stim, "modello": ", ".join(sorted({nome_modello(k) for k in (r.get("modelli") or {})})) or ""})
         if g and g > p["ultimo"]: p["ultimo"] = g
     p["top"] = sorted(p["top"], key=lambda x: -x["lavoro"])[:TOP]
     p["giorni"] = sorted(p["giorni"].values(), key=lambda x: x["giorno"])
     p["plancia"] = peso_plancia(rad, len(sess) if p["richieste"] else 0, p["richieste"])
+    p["plancia"]["piani"] = p["piani"]
     return p
 
 
@@ -101,6 +116,14 @@ def consumi(radici, giorni=7):
     out.sort(key=lambda p: (-p["lavoro"], -p["richieste"], p["nome"].lower()))
     for p in out: p["fonti"] = [dict(fonte=k, **v) for k, v in sorted(p["fonti"].items(), key=lambda kv: -kv[1]["lavoro"])]
     tot = {k: sum(p[k] for p in out) for k in ("richieste", "misurate", "non_misurabili", "stimate", "lavoro", "riletti", "ragionamento", "ingresso", "risposte", "scritti", "stima_lavoro")}
+    mod = {}
+    for p in out:
+        p["modelli"] = sorted(p["modelli"].values(), key=lambda m: -m["lavoro"])
+        for m in p["modelli"]:
+            t0 = mod.setdefault(m["modello"], {"modello": m["modello"], "richieste": 0, "lavoro": 0, "riletti": 0, "risposte": 0})
+            for k in ("richieste", "lavoro", "riletti", "risposte"): t0[k] += m[k]
+        p["skills_usate"] = sorted(p["skills_usate"].items(), key=lambda kv: -kv[1])
+    tot["modelli"] = sorted(mod.values(), key=lambda m: -m["lavoro"])
     tot["plancia"] = sum(p["plancia"]["iniettato"] for p in out)
     tot["progetti_attivi"] = sum(1 for p in out if p["richieste"])
     d = {"giorni": giorni, "da": da, "progetti": out, "totali": tot, "calcolato": time.strftime("%H:%M:%S")}

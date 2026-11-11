@@ -52,6 +52,20 @@ def _testo_skill_esistenti(rad):
     return out
 
 
+def _skill_vicina(rad, parole):
+    """La skill gia presente che assomiglia di piu a queste parole: (nome, copertura 0-1, parole mancanti). None se non ce ne sono."""
+    best = None
+    for d in (Path(rad) / ".claude" / "skills", Path(rad) / ".github" / "skills", Path(rad) / ".agents" / "skills"):
+        for f in sorted(d.glob("*/SKILL.md")) if d.is_dir() else []:
+            try: t = f.read_text(encoding="utf-8", errors="ignore")[:8000]
+            except Exception: continue
+            pw = _parole(f.parent.name + " " + t)
+            if not parole: continue
+            cop = len(parole & pw) / float(len(parole))
+            if best is None or cop > best[1]: best = (f.parent.name, cop, sorted(parole - pw)[:8])
+    return best
+
+
 _C = {}
 
 
@@ -131,12 +145,33 @@ def _analizza(rad, limite):
     for c in sorted(cl, key=lambda c: -len(c["rich"])):
         if len(c["rich"]) < MIN_RICHIESTE: break
         ex = [_dom(rich[i]) for i in c["rich"][:3]]; ch = "cand-ricorrente-" + _slug(" ".join(sorted(c["pw"])[:3]))
-        cand.append({"id": ch, "genere": "skill", "tipo_cand": "ricorrente", "peso": len(c["rich"]),
-                     "titolo": "Ti capita di chiedere cose simili (%d volte)" % len(c["rich"]), "ambito": "solo questo progetto",
-                     "visto": ["Richieste molto simili in %d occasioni, l'ultima il %s." % (len(c["rich"]), _quando(rich[c["rich"][0]]))] + ["«%s»" % x for x in ex],
-                     "scegli_cartella": True, "perche": "Un compito che ripeti si puo scrivere una volta come procedura: l'agente la segue sempre allo stesso modo invece di reinventarla.",
-                     "effetto": "Ti do il testo da incollare: l'agente scrive la procedura partendo dalle tue richieste.",
-                     "prompt": "I often ask for things like: %s. Create a project skill (max 40 lines) named %s-%s with the procedure you would follow for this kind of request: steps, which commands/files to use, what to check at the end. The frontmatter description must say when to use it. Skills folder: <skills dir>. Add the folder to .git/info/exclude." % ("; ".join('"%s"' % x for x in ex), _slug(nome), _slug(" ".join(sorted(c["pw"])[:2])))})
+        conta = {}
+        for i in c["rich"]:
+            for w in _parole(_dom(rich[i])): conta[w] = conta.get(w, 0) + 1
+        chiavi = {w for w, n in conta.items() if n * 2 >= len(c["rich"])} or c["pw"]
+        vic = _skill_vicina(rad, chiavi)
+        visto = ["Richieste molto simili in %d occasioni, l'ultima il %s." % (len(c["rich"]), _quando(rich[c["rich"][0]]))] + ["\u00ab%s\u00bb" % x for x in ex]
+        esempi = "; ".join('"%s"' % x for x in ex)
+        if vic and vic[1] >= 0.6:
+            cand.append({"id": ch, "genere": "skill", "tipo_cand": "ricorrente", "peso": len(c["rich"]) + 1,
+                         "titolo": "La skill \u201c%s\u201d esiste ma continui a ripetere la richiesta (%d volte): va migliorata" % (vic[0], len(c["rich"])), "ambito": "solo questo progetto",
+                         "visto": visto + ["La skill copre gia questi temi, ma tu devi comunque chiederlo di nuovo: probabilmente la descrizione non la fa scattare."],
+                         "perche": "Una skill utile deve scattare da sola. Se continui a ripetere le stesse frasi, la sua descrizione non contiene le parole che usi tu.",
+                         "effetto": "Ti do il testo da incollare: l'agente riscrive la descrizione con le tue parole e ci aggiunge cio che chiedi ogni volta.",
+                         "prompt": "I keep asking for: %s. Read the skill '%s' (in .claude/skills or .github/skills). Improve ONLY its frontmatter description and body: make the description say when to use it with the words I use in those requests, and add the steps you had to improvise. Keep it under 40 lines." % (esempi, vic[0])})
+        elif vic and vic[1] >= 0.3:
+            cand.append({"id": ch, "genere": "skill", "tipo_cand": "ricorrente", "peso": len(c["rich"]),
+                         "titolo": "Ti capita di chiedere cose simili (%d volte): falle entrare nella skill \u201c%s\u201d" % (len(c["rich"]), vic[0]), "ambito": "solo questo progetto",
+                         "visto": visto + ["La skill \u201c%s\u201d copre in parte l'argomento (mancano: %s)." % (vic[0], ", ".join(vic[2]) or "-")],
+                         "perche": "Meglio far crescere una skill che ne hai gia che crearne una nuova: ogni skill in piu costa token a ogni chat.",
+                         "effetto": "Ti do il testo da incollare: l'agente aggiunge alla skill la procedura per questi casi.",
+                         "prompt": "I often ask for things like: %s. Extend the existing skill '%s' so it also covers this kind of request: add the steps, commands/files to use and what to check at the end, and update its description so it triggers on these words. Do not create a new skill." % (esempi, vic[0])})
+        else:
+            cand.append({"id": ch, "genere": "skill", "tipo_cand": "ricorrente", "peso": len(c["rich"]),
+                         "titolo": "Ti capita di chiedere cose simili (%d volte)" % len(c["rich"]), "ambito": "solo questo progetto",
+                         "visto": visto, "scegli_cartella": True, "perche": "Un compito che ripeti si puo scrivere una volta come procedura: l'agente la segue sempre allo stesso modo invece di reinventarla.",
+                         "effetto": "Ti do il testo da incollare: l'agente scrive la procedura partendo dalle tue richieste.",
+                         "prompt": "I often ask for things like: %s. Create a project skill (max 40 lines) named %s-%s with the procedure you would follow for this kind of request: steps, which commands/files to use, what to check at the end. The frontmatter description must say when to use it. Skills folder: <skills dir>. Add the folder to .git/info/exclude." % (esempi, _slug(nome), _slug(" ".join(sorted(c["pw"])[:2])))})
         break
     # 5) richieste di sola analisi -> agente di sola lettura
     sl = [r for r in rich if not any(a.get("tipo") == "modifica" for a in r.get("attivita") or []) and sum(1 for a in r.get("attivita") or [] if a.get("tipo") in ("leggi", "cerca")) >= 5 and ANALISI.search(_dom(r))]
