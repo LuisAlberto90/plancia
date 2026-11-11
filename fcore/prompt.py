@@ -11,6 +11,7 @@ VAGO = re.compile(r"(?i)\b(questo|questa|quello|quella|questa cosa|la cosa|sta c
 VINCOLI = re.compile(r"(?i)\b(non (toccare|modificare|cambiare|cancellare)|senza (toccare|modificare|cambiare)|solo (in|il|la|nel|nella|lettura)|soltanto|do not|don't|without (changing|touching)|only|read-only|sola lettura|keep|mantieni|lascia)\b")
 ESEMPIO = re.compile(r"(?i)(\bes(empio)?[.:]|\bexample|\be\.g\.|```|\bcome (in|fa|per)\b|\blike in\b|input|output|\bstack ?trace\b|\berror[e]?:|exception)")
 PASSI = re.compile(r"(?im)(^\s*(\d+[.)]|[-*•])\s+\S|\b(e poi|dopodich[eé]|inoltre|infine|and then|after that|also|finally)\b)")
+LETTURA = re.compile(r"(?i)(sola lettura|read-only|read only|in lettura|non (modificare|toccare|cambiare|creare)|do not (modify|change|edit|create)|without (modifying|changing)|solo (analisi|lettura|revisione))")
 PIANO = re.compile(r"(?i)\b(pian\w*|plan\w*|prima (di|dimmi|spiega|proponi)|proponi|non scrivere codice|before (coding|writing|you)|step by step|passo passo)\b")
 
 
@@ -23,6 +24,7 @@ def valuta(testo, agente=""):
     t = str(testo or "").strip()
     if not t or t.startswith("(domanda nella chat"): return None
     tagliato = t.endswith("…"); parole = len(re.findall(r"\w+", t)); modifica = bool(MODIFICA.search(t)); domanda_semplice = not modifica and (t.rstrip().endswith("?") or parole <= 25)
+    lettura = bool(LETTURA.search(t)); modifica = modifica and not lettura                                   # «sola lettura»: le parole come «crea» o «modifica» sono divieti, non richieste
     n_file = len(set(m.group(0) for m in FILE.finditer(t))); vaghi = len(VAGO.findall(t)); passi = len(PASSI.findall(t)); voci = []
     voci.append(_voce(parole >= 8 or (domanda_semplice and parole >= 4), "Di' cosa vuoi ottenere, non solo cosa fare",
                       "Con poche parole l'agente deve indovinare lo scopo, e spesso indovina una cosa diversa da quella che hai in mente.",
@@ -63,7 +65,11 @@ def valuta(testo, agente=""):
                              "Done when: <test or command that must pass>" if any("verificare" in v["regola"] for v in manca) else "",
                              "First write the plan and wait for my OK." if any("piano" in v["regola"] for v in manca) else ""])
         modello = re.sub(r"\n{2,}", "\n", modello).strip()
-    return {"tipo": "modifica" if modifica else "domanda", "voci": voci, "da_migliorare": len(manca), "giudizio": giudizio, "modello": modello, "parziale": tagliato,
+    rivedi = ("Review the prompt below before I use it. Do NOT run it. Read it like a new colleague would and tell me, briefly: "
+              "(1) instructions that contradict each other or can be read two ways; (2) what is missing to do the job without guessing "
+              "(scope, files, allowed commands, what must not change, how to check it is done); (3) anything that costs tokens for no reason. "
+              "Then give me a rewritten version.\n\n--- PROMPT ---\n" + t[:12000])
+    return {"tipo": "lettura" if lettura else "modifica" if modifica else "domanda", "rivedi": rivedi, "voci": voci, "da_migliorare": len(manca), "giudizio": giudizio, "modello": modello, "parziale": tagliato,
             "fonti": [FONTI[k] for k in ("copilot", "claude")]}
 
 
