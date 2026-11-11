@@ -366,4 +366,5 @@ v("prompt completo: nessun appunto e nessuno schema", _v2["da_migliorare"] == 0 
 v("prompt: una domanda semplice non riceve le regole delle modifiche; vuoto -> niente", _PV.valuta("che versione di node abbiamo in questo progetto ?")["da_migliorare"] == 0 and _PV.valuta("") is None)
 v("richiesta: il testo del prompt resta intero (non tagliato a 400)", len(_RQ._nuova("riga\n" * 900, "", "claude", "s")["domanda"]) > 4000)
 v("skill: consigli se la descrizione non dice quando usarla; niente se e scritta bene", len(_PV.valuta_skill("x-y", "Does things", "passi " * 40, "x-y")) >= 1 and _PV.valuta_skill("x-y", "Exact build commands for the project. Use when building or testing.", "passi " * 40, "x-y") == [])
+v("prompt tagliato: il giudizio dice che e parziale, non \"completo\"", "parziale" in _PV.valuta("Read-only audit. Find package.json, frontend folders, angular.json/…")["giudizio"])
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

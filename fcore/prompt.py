@@ -52,6 +52,7 @@ def valuta(testo, agente=""):
                           "Sposta le parti che non cambiano in AGENTS.md / copilot-instructions.md o in una skill, e nel prompt lascia solo il compito.", "claude"))
     manca = [v for v in voci if not v["ok"]]
     giudizio = "Prompt completo: ha tutto quello che le guide consigliano." if not manca else ("Buon prompt, con %s da aggiungere." % ("una cosa" if len(manca) == 1 else "%d cose" % len(manca)) if len(manca) <= 2 else "Prompt migliorabile: mancano %d ingredienti." % len(manca))
+    if tagliato: giudizio = "Valutazione parziale: della richiesta ho solo l'inizio, quindi manca il resto del testo." + (" Dall'inizio risulta che mancano %d cose." % len(manca) if manca else "")
     modello = ""
     if manca and modifica:
         riga1 = t.splitlines()[0][:200]
