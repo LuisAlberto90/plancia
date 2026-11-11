@@ -380,24 +380,59 @@ _c1 = _CO.consumi([str(_jt)], 1); _c7 = _CO.consumi([str(_jt)], 7); _c0 = _CO.co
 v("consumi: oggi = solo le richieste di oggi; token di lavoro e cache separati", _c1["totali"]["richieste"] == 2 and _c1["totali"]["lavoro"] == 9000 and _c1["totali"]["riletti"] == 50000, _c1["totali"])
 v("consumi: la chat di VS Code si conta ma e non misurabile, fuori dai token", _c1["totali"]["non_misurabili"] == 1 and _c1["totali"]["misurate"] == 1)
 v("consumi: 7 giorni include ieri ma non il 2020; tutto include tutto; top ordinato per consumo", _c7["totali"]["lavoro"] == 10000 and _c0["totali"]["lavoro"] == 10500 and _c0["progetti"][0]["top"][0]["domanda"] == "grande" and len(_c7["progetti"][0]["giorni"]) == 2, _c7["totali"])
-import types as _ty, shutil as _sh9
+# --- chat di VS Code: lettura delle sessioni salvate, token reali o stimati, collegamento alla cartella del progetto
+from fcore import vscodechat as _VC
+_u9 = Path(tempfile.mkdtemp()); _prj9 = Path(tempfile.mkdtemp()) / "miaApp"; _prj9.mkdir()
+_ws9 = _u9 / "Code" / "User" / "workspaceStorage" / "abc"; (_ws9 / "chatSessions").mkdir(parents=True)
+(_ws9 / "workspace.json").write_text(json.dumps({"folder": "file://" + str(_prj9).replace("\\", "/") if str(_prj9).startswith("/") else "file:///" + str(_prj9).replace("\\", "/")}), encoding="utf-8")
+_q1 = {"timestamp": 1762851600000, "message": {"text": "x" * 400}, "response": [{"value": "y" * 800}, {"kind": "toolInvocationSerialized", "value": "z" * 5000}], "result": {}}
+_q2 = {"timestamp": 1762855200000, "message": {"text": "ciao"}, "response": [{"value": "ok"}], "result": {"metadata": {"promptTokens": 5000, "outputTokens": 700}}, "modelId": "gpt"}
+(_ws9 / "chatSessions" / "a.json").write_text(json.dumps({"requests": [_q1, _q2]}), encoding="utf-8")
+(_ws9 / "chatSessions" / "b.jsonl").write_text("\n".join(json.dumps(m) for m in [{"kind": 0, "v": {"creationDate": 1762851600000, "requests": []}}, {"kind": 2, "k": ["requests"], "v": [dict(_q1, message={"text": "w" * 40})]}]), encoding="utf-8")
+_oa = os.environ.get("APPDATA"); _oh2 = os.environ.get("HOME"); os.environ["APPDATA"] = str(_u9); os.environ["HOME"] = os.environ["USERPROFILE"] = str(_u9 / "h")
+(_u9 / "h" / ".config").mkdir(parents=True, exist_ok=True)
+_VC._C.clear()
+try:
+    if os.name != "nt": (_u9 / "h" / ".config" / "Code").symlink_to(_u9 / "Code")
+    _vr = _VC.richieste(str(_prj9)); _vn = _VC.richieste(str(_prj9) + "x")
+finally:
+    if _oa is None: os.environ.pop("APPDATA", None)
+    else: os.environ["APPDATA"] = _oa
+    os.environ["HOME"] = os.environ["USERPROFILE"] = _oh2 or ""
+v("chat VS Code: trova le sessioni del progetto (json e jsonl a mutazioni)", len(_vr) == 3 and not _vn, [(r["token_in"], r["token_out"], r["stimato"]) for r in _vr])
+v("chat VS Code: token reali se ci sono, altrimenti stima dal testo senza contare gli strumenti", any(r["token_in"] == 5000 and r["token_out"] == 700 and not r["stimato"] for r in _vr) and any(r["token_in"] == 100 and r["token_out"] == 200 and r["stimato"] for r in _vr), _vr)
+# --- consumi: ripartizione input/risposte e peso della Plancia
+_pp = _CO.peso_plancia(str(_jt), 2, 10)
+v("consumi: peso della Plancia = solo testo iniettato (regola+skill per chat, promemoria per messaggio)", _pp["iniettato"] == 2 * (_pp["regola"] + _pp["skill"]) + 8 * _pp["promemoria"] and 100 < _pp["regola"] < 600 and _pp["schema_pieno"] > _pp["schema"], _pp)
+_rq10 = [{"inizio": _oggi9 + "T10:00:00", "fonte": "claude", "sessione": "s1", "domanda": "a", "token_lavoro": 1000, "token_riletti": 4000, "ragionamento": 0, "token_in": 200, "token_out": 600, "token_scritti": 200},
+         {"inizio": _oggi9 + "T11:00:00", "fonte": "vscode", "sessione": "", "domanda": "hook", "token_lavoro": 0, "token_riletti": 0, "ragionamento": 0}]
+_ov, _orq = _CO.VC.richieste, _CO.RQ.tutte
+_CO.VC.richieste = lambda r: [{"inizio": _oggi9 + "T12:00:00", "domanda": "chat", "token_in": 300, "token_out": 500, "stimato": True, "modello": ""}]; _CO.RQ.tutte = lambda rad, n=40: _rq10; _CO._C.clear()
+_c10 = _CO.consumi([str(_jt)], 1); _CO.VC.richieste, _CO.RQ.tutte = _ov, _orq; _CO._C.clear()
+_t10 = _c10["totali"]
+v("consumi: chat VS Code con token stimati sostituisce le righe senza numero, marcata come stima", _t10["richieste"] == 2 and _t10["stimate"] == 1 and _t10["stima_lavoro"] == 800 and _t10["non_misurabili"] == 0, _t10)
+v("consumi: input, risposte e cache scritta separati; la Plancia compare nei totali", _t10["ingresso"] == 500 and _t10["risposte"] == 1100 and _t10["scritti"] == 200 and _t10["plancia"] > 0, _t10)
+import io as _io9, zipfile as _zf9
 from fcore import pannello as _PNL
 _h9 = Path(tempfile.mkdtemp())
 for _n9 in ("plancia", "plancia-7cad17cb"):
-    (_h9 / ".copilot" / "installed-plugins" / "_direct" / _n9 / "fcore").mkdir(parents=True); (_h9 / ".copilot" / "installed-plugins" / "_direct" / _n9 / "fcore" / "auto.py").write_text("x", encoding="utf-8")
-_chiam = []
-def _fake_run(cmd, **kw):
-    _chiam.append((cmd[:3], kw.get("encoding")))
-    return _ty.SimpleNamespace(returncode=1, stdout="", stderr="Failed to install plugin: The process cannot access the file because it is being used by another process. (os error 32)")
+    (_h9 / ".copilot" / "installed-plugins" / "_direct" / _n9 / "fcore").mkdir(parents=True); (_h9 / ".copilot" / "installed-plugins" / "_direct" / _n9 / "fcore" / "auto.py").write_text("vecchio", encoding="utf-8")
+(_h9 / ".copilot" / "installed-plugins" / "_direct" / "plancia-7cad17cb" / "bloccato.txt").mkdir()      # un nome che non si puo scrivere: simula un file in uso
+_bz = _io9.BytesIO()
+with _zf9.ZipFile(_bz, "w") as _z9:
+    _z9.writestr("plancia-main/fcore/mcp.py", 'VERSIONE = "9.9.9"\n'); _z9.writestr("plancia-main/fcore/auto.py", "nuovo"); _z9.writestr("plancia-main/bloccato.txt", "x")
+    _z9.writestr("plancia-main/../evil.txt", "no"); _z9.writestr("plancia-main/.git/config", "no")
 _oh = (os.environ.get("HOME"), os.environ.get("USERPROFILE")); os.environ["HOME"] = os.environ["USERPROFILE"] = str(_h9)
-_ow, _or = _sh9.which, subprocess.run
-_sh9.which = lambda n: "copilot" if n == "copilot" else None; subprocess.run = _fake_run
-try: _ag = _PNL._aggiorna()
+_oq = _PNL.QUI; _PNL.QUI = _h9 / "motore" / "fcore"; (_h9 / "motore" / "fcore").mkdir(parents=True)
+try: _ag = _PNL._aggiorna(scarica=lambda: _bz.getvalue()); _ag2 = _PNL._aggiorna(scarica=lambda: (_ for _ in ()).throw(OSError("rete assente")))
 finally:
-    _sh9.which, subprocess.run = _ow, _or
+    _PNL.QUI = _oq
     for _k9, _v9 in zip(("HOME", "USERPROFILE"), _oh):
         if _v9 is None: os.environ.pop(_k9, None)
         else: os.environ[_k9] = _v9
-v("aggiorna: il comando di Copilot CLI parte una sola volta anche con due copie, in UTF-8", len(_chiam) == 1 and _chiam[0][1] == "utf-8", _chiam)
-v("aggiorna: file bloccato (os error 32) -> messaggio chiaro su cosa chiudere", "chiudi" in _ag["messaggio"].lower() and any("chat di Copilot CLI" in d for d in _ag["dettagli"]) and not _ag["ok"], _ag)
+_d9 = _h9 / ".copilot" / "installed-plugins" / "_direct"
+v("aggiorna: riscrive i file senza sostituire la cartella e senza chiedere di chiudere nulla", (_d9 / "plancia" / "fcore" / "auto.py").read_text() == "nuovo" and (_d9 / "plancia-7cad17cb" / "fcore" / "auto.py").read_text() == "nuovo" and _ag["cambiata"], _ag)
+v("aggiorna: un file in uso viene saltato e segnalato, il resto si aggiorna", any("saltati" in x for x in _ag["dettagli"]) and not _ag["ok"], _ag)
+v("aggiorna: nessun file fuori dalla copia ne .git", not (_d9 / "evil.txt").exists() and not (_d9.parent / "evil.txt").exists() and not (_d9 / "plancia" / ".git").exists())
+v("aggiorna: senza rete messaggio chiaro, nulla di rotto", "scaricare" in _ag2["messaggio"] and not _ag2["ok"], _ag2)
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

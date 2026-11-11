@@ -37,7 +37,7 @@ copilot plugin install LuisAlberto90/plancia
 ```
 
 Fatto. Alla prima domanda in un progetto la Plancia si accende da sola: apri **http://127.0.0.1:8780** (mettilo nei preferiti)
-oppure scrivi `/plancia` in chat. Aggiornamenti: dalla pagina dei plugin di VS Code / `copilot plugin update plancia` / `/plugin update` in Claude Code.
+oppure scrivi `/plancia` in chat. Aggiornamenti: il bottone **Aggiorna la Plancia** nel pannello scarica l'ultima versione e riscrive i file di ogni copia installata, **anche con chat di VS Code o Copilot CLI aperte** (non aspetta e non chiede di chiuderle); in alternativa dalla pagina dei plugin di VS Code / `copilot plugin update plancia` / `/plugin update` in Claude Code.
 
 **Alternativa senza plugin** (se l'azienda blocca i plugin): `git clone https://github.com/LuisAlberto90/plancia C:\Strumenti\plancia`,
 poi doppio clic su **Installa-in-un-progetto.cmd** per ogni progetto (scrive regola e hook nel progetto).
@@ -101,3 +101,8 @@ Gli hook non salvano mai segreti; i prompt sono salvati accorciati e ripuliti. `
 
 Test della Plancia stessa: `python tests/run_tests.py` (il test del pannello nel browser richiede `playwright`, altrimenti viene saltato). Lint e sicurezza: `ruff check .` e `bandit -r fcore -ll`. Vedi anche [SECURITY.md](SECURITY.md).
 
+
+
+## Consumi: chi consuma cosa
+
+La schermata **Consumi** legge solo file gia presenti sul PC (zero token, zero rete) e separa, per progetto: cosa hai dato da leggere (input), le risposte scritte dall'agente, la cache scritta e la cache riletta. Claude Code e Copilot CLI danno i token reali; la chat di VS Code li salva solo a volte in `workspaceStorage/*/chatSessions`: dove mancano sono **stimati dal testo** (4 caratteri = 1 token) e marcati come stima (un minimo). La Plancia non usa token: la sua voce e solo il testo che inietta nelle chat (regola del piano, descrizione della skill, promemoria).

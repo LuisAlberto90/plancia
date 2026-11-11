@@ -1,10 +1,13 @@
 """Consumi per progetto: quanti token hanno usato gli agenti, progetto per progetto, giorno per giorno e richiesta per richiesta.
-Solo lettura delle trascrizioni gia presenti sul PC (Claude Code, Copilot CLI): zero token, nessuna rete.
-Limite onesto: la chat di VS Code non fornisce i token alla Plancia, quindi quelle richieste si contano ma non si misurano."""
-import os, time
+Solo lettura di cio che e gia sul PC (Claude Code, Copilot CLI, chat di VS Code): zero token, nessuna rete.
+Onesta: Claude Code e Copilot CLI danno i token reali; la chat di VS Code li da solo a volte, altrimenti si STIMANO dal testo (marcato "stima").
+La Plancia stessa non usa token: costa solo il testo che inietta nel contesto dell'agente, calcolato in `peso_plancia`."""
+import json, os, time
 from pathlib import Path
 try: from . import richieste as RQ
 except ImportError: import richieste as RQ
+try: from . import vscodechat as VC
+except ImportError: import vscodechat as VC
 
 _C = {}
 TOP = 5
@@ -16,23 +19,61 @@ def _taglio(giorni):
     return time.strftime("%Y-%m-%d", time.localtime(time.time() - (giorni - 1) * 86400))
 
 
+def peso_plancia(rad, sessioni, richieste):
+    """Quanto costa la Plancia in token (stima, 4 caratteri = 1 token): e solo il testo che inietta nel contesto dell'agente.
+    La Plancia in se gira sul PC e non usa token. Ritorna le voci e il totale 'iniettato' per questo periodo."""
+    try:
+        from fcore import auto, mcp
+    except ImportError:
+        import auto, mcp
+    t = lambda x: max(1, len(x) // 4)
+    regola = t(auto.regola("plancia")); prome = t("[Plancia] New message. Unless it is a pure question: same work as before -> plancia_piano_aggiungi; different work -> plancia_piano_nuovo with \"nuovo\": true. Plan before reading files.")
+    schema = t(json.dumps(mcp.PIANO_TOOLS)); schema_pieno = t(json.dumps([x for x in mcp.TOOLS if x["name"] != "plancia_passo"] + mcp.PIANO_TOOLS))
+    skill = 0
+    try:
+        m = [l for l in (Path(__file__).resolve().parent.parent / "skills" / "plancia-metodo" / "SKILL.md").read_text(encoding="utf-8").splitlines() if l.startswith("description:")]
+        skill = t(m[0]) if m else 0
+    except Exception: pass
+    chiamate = 0
+    try:
+        f = Path(rad) / ".factory" / "eventi.jsonl"
+        if f.is_file(): chiamate = sum(1 for l in f.read_text(encoding="utf-8", errors="replace").splitlines()[-20000:] if '"strumento": "plancia_' in l or '"strumento":"plancia_' in l)
+    except Exception: pass
+    iniettato = sessioni * (regola + skill) + max(0, richieste - sessioni) * prome
+    return {"regola": regola, "promemoria": prome, "skill": skill, "schema": schema, "schema_pieno": schema_pieno, "chiamate": chiamate,
+            "iniettato": iniettato, "voci": [
+                {"nome": "Regola del piano (una volta per chat)", "token": regola, "volte": sessioni},
+                {"nome": "Descrizione della skill (una volta per chat)", "token": skill, "volte": sessioni},
+                {"nome": "Promemoria sui messaggi successivi", "token": prome, "volte": max(0, richieste - sessioni)}]}
+
+
 def _progetto(rad, da):
     rich = RQ.tutte(rad, 5000)
-    p = {"radice": str(rad), "nome": Path(rad).name, "richieste": 0, "misurate": 0, "non_misurabili": 0, "lavoro": 0, "riletti": 0, "ragionamento": 0,
-         "fonti": {}, "giorni": {}, "top": [], "ultimo": ""}
+    try: vs = VC.richieste(rad)
+    except Exception: vs = []
+    if vs: rich = [r for r in rich if r.get("fonte") != "vscode"] + [{"inizio": v["inizio"], "fonte": "vscode", "domanda": v["domanda"], "token_in": v["token_in"], "token_out": v["token_out"], "token_lavoro": v["token_in"] + v["token_out"],
+                                                                      "stimato": v["stimato"], "sessione": "vs"} for v in vs]
+    p = {"radice": str(rad), "nome": Path(rad).name, "richieste": 0, "misurate": 0, "non_misurabili": 0, "stimate": 0, "lavoro": 0, "riletti": 0, "ragionamento": 0,
+         "ingresso": 0, "risposte": 0, "scritti": 0, "stima_lavoro": 0, "fonti": {}, "giorni": {}, "top": [], "ultimo": ""}
+    sess = set()
     for r in rich:
         g = str(r.get("inizio") or "")[:10]
         if da and g < da: continue
         lav = int(r.get("token_lavoro") or 0); ril = int(r.get("token_riletti") or 0); rag = int(r.get("ragionamento") or 0)
-        mis = (lav + ril) > 0; f = r.get("fonte") or "?"
-        p["richieste"] += 1; p["misurate" if mis else "non_misurabili"] += 1
+        mis = (lav + ril) > 0; f = r.get("fonte") or "?"; stim = bool(r.get("stimato"))
+        if not (r.get("token_in") or r.get("token_out") or r.get("token_scritti")) and lav: r = dict(r, token_in=lav)      # vecchi dati senza divisione: tutto in "ingresso"
+        p["richieste"] += 1; p["misurate" if mis and not stim else "non_misurabili" if not mis else "stimate"] += 1
         p["lavoro"] += lav; p["riletti"] += ril; p["ragionamento"] += rag
-        ff = p["fonti"].setdefault(f, {"richieste": 0, "misurate": 0, "lavoro": 0, "riletti": 0}); ff["richieste"] += 1; ff["misurate"] += 1 if mis else 0; ff["lavoro"] += lav; ff["riletti"] += ril
+        p["ingresso"] += int(r.get("token_in") or 0); p["risposte"] += int(r.get("token_out") or 0); p["scritti"] += int(r.get("token_scritti") or 0)
+        if stim: p["stima_lavoro"] += lav
+        sess.add(r.get("sessione") or g)
+        ff = p["fonti"].setdefault(f, {"richieste": 0, "misurate": 0, "lavoro": 0, "riletti": 0, "stimate": 0}); ff["richieste"] += 1; ff["misurate"] += 1 if mis and not stim else 0; ff["stimate"] += 1 if stim else 0; ff["lavoro"] += lav; ff["riletti"] += ril
         gg = p["giorni"].setdefault(g, {"giorno": g, "richieste": 0, "lavoro": 0}); gg["richieste"] += 1; gg["lavoro"] += lav
-        if mis: p["top"].append({"domanda": (r.get("domanda") or "").strip().split("\n")[0][:110], "lavoro": lav, "riletti": ril, "inizio": str(r.get("inizio") or "")[:16].replace("T", " "), "fonte": f})
+        if mis: p["top"].append({"domanda": (r.get("domanda") or "").strip().split("\n")[0][:110], "lavoro": lav, "riletti": ril, "inizio": str(r.get("inizio") or "")[:16].replace("T", " "), "fonte": f, "stimato": stim})
         if g and g > p["ultimo"]: p["ultimo"] = g
     p["top"] = sorted(p["top"], key=lambda x: -x["lavoro"])[:TOP]
     p["giorni"] = sorted(p["giorni"].values(), key=lambda x: x["giorno"])
+    p["plancia"] = peso_plancia(rad, len(sess) if p["richieste"] else 0, p["richieste"])
     return p
 
 
@@ -51,7 +92,8 @@ def consumi(radici, giorni=7):
         else: os.environ["FACTORY_ROOT"] = vecchio
     out.sort(key=lambda p: (-p["lavoro"], -p["richieste"], p["nome"].lower()))
     for p in out: p["fonti"] = [dict(fonte=k, **v) for k, v in sorted(p["fonti"].items(), key=lambda kv: -kv[1]["lavoro"])]
-    tot = {k: sum(p[k] for p in out) for k in ("richieste", "misurate", "non_misurabili", "lavoro", "riletti", "ragionamento")}
+    tot = {k: sum(p[k] for p in out) for k in ("richieste", "misurate", "non_misurabili", "stimate", "lavoro", "riletti", "ragionamento", "ingresso", "risposte", "scritti", "stima_lavoro")}
+    tot["plancia"] = sum(p["plancia"]["iniettato"] for p in out)
     tot["progetti_attivi"] = sum(1 for p in out if p["richieste"])
     d = {"giorni": giorni, "da": da, "progetti": out, "totali": tot, "calcolato": time.strftime("%H:%M:%S")}
     _C[chiave] = (ora, d)

@@ -64,7 +64,7 @@ def _somma(r, cwd, n, i):
 
 
 def _nuova(domanda, ts, fonte, sid):
-    return {"domanda": lib.redigi_testo(domanda, 20000), "inizio": ts, "fine": ts, "fonte": fonte, "sessione": sid, "token_lavoro": 0, "token_riletti": 0, "ragionamento": 0,
+    return {"domanda": lib.redigi_testo(domanda, 20000), "inizio": ts, "fine": ts, "fonte": fonte, "sessione": sid, "token_lavoro": 0, "token_riletti": 0, "ragionamento": 0, "token_in": 0, "token_out": 0, "token_scritti": 0,
             "strumenti": {}, "file": [], "comandi": [], "errori": 0, "sotto_agenti": 0, "risposta": "", "rami": None, "attivita": [], "finita": False, "_id": {}, "_passo": None, "piano_scritto": False, "ambiente": [], "righe": {}}
 
 
@@ -194,6 +194,7 @@ def da_claude(f):
         u, mid = m.get("usage") or {}, m.get("id")
         if u and mid not in visti:
             visti.add(mid); r["token_lavoro"] += u.get("input_tokens", 0) + u.get("output_tokens", 0) + u.get("cache_creation_input_tokens", 0)
+            r["token_in"] += u.get("input_tokens", 0); r["token_out"] += u.get("output_tokens", 0); r["token_scritti"] += u.get("cache_creation_input_tokens", 0)
             r["token_riletti"] += u.get("cache_read_input_tokens", 0); r["ragionamento"] += (u.get("output_tokens_details") or {}).get("thinking_tokens", 0)
         usa = False
         for b in c if isinstance(c, list) else []:
@@ -262,6 +263,7 @@ def da_copilot(f):
         elif t in ("assistant.turn_end", "session.idle"): r["finita"] = not subs      # finisce solo quando i sotto-agenti sono tornati
         elif t == "session.usage_record":
             u = x.get("usage") or {}; r["token_lavoro"] += u.get("inputTokens", 0) + u.get("outputTokens", 0) + u.get("cacheWriteTokens", 0)
+            r["token_in"] += u.get("inputTokens", 0); r["token_out"] += u.get("outputTokens", 0); r["token_scritti"] += u.get("cacheWriteTokens", 0)
             r["token_riletti"] += u.get("cacheReadTokens", 0); r["ragionamento"] += u.get("reasoningTokens", 0)
     if r: out.append(_chiudi(r, rami))
     _cache[k] = out

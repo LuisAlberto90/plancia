@@ -138,46 +138,78 @@ def _cestina_piano(prog, file):
     return {"ok": True, "messaggio": "Piano tolto. Se ti serve ancora e in .factory/piani/_cestino."}
 
 
-def _aggiorna():
-    """Aggiorna la Plancia con un clic: git pull nelle copie installate (o `copilot plugin update`). Poi il pannello si riavvia da solo."""
-    import shutil, subprocess
+ZIP_URL = "https://codeload.github.com/LuisAlberto90/plancia/zip/refs/heads/main"
+
+
+def _scarica_zip(url=None):
+    """Scarica l'ultima versione (un solo zip da GitHub). Ritorna i byte, o solleva l'errore di rete."""
+    import urllib.request
+    url = url or ZIP_URL
+    if not url.startswith("https://"): raise ValueError("solo https")
+    with urllib.request.urlopen(url, timeout=60) as r:  # noqa: S310  # nosec B310
+        return r.read()
+
+
+def _versione_zip(z):
+    for n in z.namelist():
+        if n.endswith("fcore/mcp.py") and n.count("/") == 2:
+            m = re.search(r'VERSIONE\s*=\s*"([^"]+)"', z.read(n).decode("utf-8", "replace"))
+            return m.group(1) if m else None
+    return None
+
+
+def _copia_diretta(d, z):
+    """Sovrascrive file per file dentro la copia `d`, senza mai sostituire la cartella: funziona anche con chat/CLI aperte.
+    Ritorna (scritti, saltati). Un file bloccato viene saltato e segnalato, mai si aspetta nessuno."""
+    d = Path(d).resolve(); scritti = 0; saltati = []
+    radice = z.namelist()[0].split("/")[0] + "/"
+    for n in z.namelist():
+        if not n.startswith(radice) or n.endswith("/"): continue
+        rel = n[len(radice):]
+        if not rel or rel.split("/")[0] in (".git", "__pycache__") or ".." in rel.split("/"): continue
+        dest = (d / rel).resolve()
+        if d not in dest.parents: continue                                # path traversal: mai fuori dalla copia
+        dati = z.read(n)
+        try:
+            if dest.is_file() and dest.read_bytes() == dati: continue
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            tmp = dest.with_name(dest.name + ".nuovo")
+            tmp.write_bytes(dati)
+            if dest.is_file():
+                import shutil; shutil.copymode(dest, tmp)                    # mantiene i permessi (script eseguibili) del file che sostituisce
+            os.replace(tmp, dest); scritti += 1
+        except OSError as e:
+            saltati.append(rel)
+            try: (dest.with_name(dest.name + ".nuovo")).unlink()
+            except OSError: pass
+    return scritti, saltati
+
+
+def _aggiorna(scarica=None):
+    """Aggiorna la Plancia con un clic, SENZA aspettare nessuno: scarica l'ultima versione e riscrive i file di ogni copia installata
+    (VS Code, Copilot CLI, Claude Code), anche con chat o CLI aperte. Poi il pannello si riavvia da solo."""
+    import io, zipfile
     from fcore import mcp as _m
-    git = shutil.which("git"); cop = shutil.which("copilot"); esiti = []; h = Path.home()
+    esiti = []; h = Path.home()
     copie = {QUI.parent.resolve()}
     for base, pat in ((h / ".vscode" / "agent-plugins", "*/*/*"), (h / ".copilot" / "installed-plugins", "*/*"), (h / ".copilot" / "installed-plugins", "*")):
         for d in (base.glob(pat) if base.is_dir() else []):
             if (d / "fcore" / "auto.py").is_file(): copie.add(d.resolve())
-    kw = {"capture_output": True, "text": True, "encoding": "utf-8", "errors": "replace", "timeout": 90, "stdin": subprocess.DEVNULL}
-    if os.name == "nt": kw["creationflags"] = 0x08000000
-    ultima = lambda r: (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]
-    cop_dirs = [d for d in sorted(copie) if not (d / ".git").exists() and ".copilot" in d.parts]
-    cop_esito = None                                                      # `copilot plugin update plancia` e uno solo per tutte le copie di Copilot CLI: si lancia una volta
+    try:
+        z = zipfile.ZipFile(io.BytesIO((scarica or _scarica_zip)()))
+    except Exception as e:                                                # niente rete, GitHub non raggiungibile, zip rotto
+        return {"ok": False, "cambiata": False, "messaggio": "Non riesco a scaricare l'ultima versione da GitHub (%s). Controlla la connessione e riprova." % str(e)[:80], "dettagli": []}
+    nuova = _versione_zip(z) or _m.VERSIONE
     for d in sorted(copie):
-        if (d / ".git").exists() and git:
-            r = subprocess.run([git, "-C", str(d), "pull", "--ff-only"], **kw)  # noqa: S603
-            esiti.append((d, r.returncode == 0, ultima(r)))
-        elif d in cop_dirs and cop:
-            if cop_esito is None:
-                r = subprocess.run([cop, "plugin", "update", "plancia"], **kw)  # noqa: S603
-                cop_esito = (r.returncode == 0, ultima(r))
-            esiti.append((d, cop_esito[0], cop_esito[1]))
-        else: esiti.append((d, False, ["non so aggiornare questa copia da sola (manca git o la CLI di Copilot)"]))
-    try: nuova = re.search(r'VERSIONE\s*=\s*"([^"]+)"', (QUI / "mcp.py").read_text(encoding="utf-8")).group(1)
-    except Exception: nuova = _m.VERSIONE
+        try: n, saltati = _copia_diretta(d, z)
+        except Exception as e: esiti.append((d, False, "NON aggiornata — %s" % str(e)[:80])); continue
+        if saltati: esiti.append((d, False, "aggiornata quasi tutta, %d file in uso saltati (%s): si completano al prossimo clic" % (len(saltati), ", ".join(saltati[:3]))))
+        else: esiti.append((d, True, "ok (%d file)" % n if n else "gia aggiornata"))
     ok = all(e[1] for e in esiti)
-    bloccata = [e for e in esiti if not e[1] and re.search(r"(?i)os error 32|used by another process|in uso|being used", " ".join(e[2]))]
-    def spiega(good, riga):
-        if good: return "ok"
-        t = " ".join(riga)
-        if re.search(r"(?i)os error 32|used by another process|being used", t): return "NON aggiornata: una chat di Copilot CLI e ancora aperta e tiene bloccati i file"
-        return "NON aggiornata — " + (riga[0] if riga else "")
-    if nuova != _m.VERSIONE: msg = "Aggiornata dalla %s alla %s: tra pochi secondi la pagina si ricarica da sola." % (_m.VERSIONE, nuova)
+    if nuova != _m.VERSIONE: msg = "Aggiornata dalla %s alla %s: tra pochi secondi la pagina si ricarica da sola. Le chat aperte non servono chiuderle." % (_m.VERSIONE, nuova)
     elif ok: msg = "Hai gia l'ultima versione (%s)." % _m.VERSIONE
-    elif bloccata: msg = "La copia di VS Code e a posto, ma quella di Copilot CLI no: chiudi le chat di Copilot CLI ancora aperte (anche in altri terminali) e clicca di nuovo. Se non hai nessuna chat aperta, chiudi e riapri il terminale."
-    else: msg = "Non sono riuscita ad aggiornare tutto."
-    dett = []
-    for d, good, riga in esiti:
-        dett.append("%s: %s" % (str(d).replace(str(h), "~"), spiega(good, riga)))
+    else: msg = "Aggiornata solo in parte: guarda i dettagli sotto."
+    dett = ["%s: %s" % (str(d).replace(str(h), "~"), t) for d, good, t in esiti]
     return {"ok": ok, "cambiata": nuova != _m.VERSIONE, "messaggio": msg, "dettagli": dett}
 
 
