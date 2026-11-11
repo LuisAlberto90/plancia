@@ -118,7 +118,7 @@ def main(a):
                 if abs(_t.time() - _t.mktime(_t.strptime(ult.get("ts", ""), "%Y-%m-%dT%H:%M:%S"))) <= 2: return 0
             except Exception: pass
         store.evento("hook:" + str(ev), "hook", sessione=str(d.get("session_id") or d.get("sessionId") or "")[:12], fonte=fonte,
-                     strumento=strum, cosa=cosa, esito=esito, prova=True if prova else None, ambiente=[list(x) for x in amb] if amb else None, testo=store.redigi(d.get("prompt") or d.get("userPrompt") or "", 300) or None)
+                     strumento=strum, cosa=cosa, esito=esito, prova=True if prova else None, ambiente=[list(x) for x in amb] if amb else None, testo=store.redigi_testo(d.get("prompt") or d.get("userPrompt") or "", 20000) or None)
         if ev == "UserPromptSubmit" and store.modo() == "governata":
             from fcore import task
             cur = (store.task_corrente() or {}).get("task_id"); t = task.stati_task().get(cur) if cur else None

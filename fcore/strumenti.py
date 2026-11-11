@@ -39,7 +39,15 @@ def skill(rad):
         posti.append(("plugin " + p.parent.name, p))
     for dove, d in posti:
         for f in sorted(d.glob("*/SKILL.md")) if d.is_dir() else []:
-            m = _fm(f); out.append({"nome": m.get("name") or f.parent.name, "descrizione": (m.get("description") or "")[:240], "dove": dove, "file": str(f)})
+            m = _fm(f); cons = []
+            if not dove.startswith("plugin"):                             # le skill dei plugin non le scrivi tu: niente consigli
+                try:
+                    try: from . import prompt as PRV
+                    except ImportError: import prompt as PRV
+                    corpo = re.sub(r"^﻿?---.*?\n---\s*", "", f.read_text(encoding="utf-8", errors="ignore")[:200000], count=1, flags=re.S)
+                    cons = PRV.valuta_skill(m.get("name") or "", m.get("description") or "", corpo, f.parent.name)
+                except Exception: cons = []
+            out.append({"nome": m.get("name") or f.parent.name, "descrizione": (m.get("description") or "")[:240], "dove": dove, "file": str(f), "consigli": cons})
     return out
 
 

@@ -358,4 +358,12 @@ v("doppione: dopo il clic la copia a mano non c'e piu; un secondo clic dice che 
 v("vecchia installazione: compare solo se c'e davvero qualcosa da togliere", "passa-al-plugin" in _ids9([_plug("/a/plancia-metodo/SKILL.md")]))
 _r8 = _S9.azione_proposta(_pp, "passa-al-plugin", "crea")
 v("vecchia installazione: dopo il clic la proposta sparisce e non ricompare", _r8["ok"] and "passa-al-plugin" not in _ids9([_plug("/a/plancia-metodo/SKILL.md")]) and not _S9.azione_proposta(_pp, "passa-al-plugin", "crea")["ok"], _r8)
+from fcore import prompt as _PV
+_v1 = _PV.valuta("sistema questo"); _m1 = [x["regola"] for x in _v1["voci"] if not x["ok"]]
+v("prompt vago: mancano nome del file, verifica e confini; propone lo schema", _v1["tipo"] == "modifica" and any("Nomina" in x for x in _m1) and any("verificare" in x for x in _m1) and "Done when" in _v1["modello"] and "Where" in _v1["modello"], _m1)
+_v2 = _PV.valuta("Aggiungi il campo stato a OrderDto.java e aggiorna OrderService; non toccare i controller. Fatto quando mvn test -Dtest=OrderServiceTest passa. Esempio: input NEW -> output Nuovo")
+v("prompt completo: nessun appunto e nessuno schema", _v2["da_migliorare"] == 0 and not _v2["modello"], _v2)
+v("prompt: una domanda semplice non riceve le regole delle modifiche; vuoto -> niente", _PV.valuta("che versione di node abbiamo in questo progetto ?")["da_migliorare"] == 0 and _PV.valuta("") is None)
+v("richiesta: il testo del prompt resta intero (non tagliato a 400)", len(_RQ._nuova("riga\n" * 900, "", "claude", "s")["domanda"]) > 4000)
+v("skill: consigli se la descrizione non dice quando usarla; niente se e scritta bene", len(_PV.valuta_skill("x-y", "Does things", "passi " * 40, "x-y")) >= 1 and _PV.valuta_skill("x-y", "Exact build commands for the project. Use when building or testing.", "passi " * 40, "x-y") == [])
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

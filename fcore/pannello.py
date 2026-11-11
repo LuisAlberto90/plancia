@@ -166,6 +166,10 @@ def _aggiorna():
     return {"ok": ok, "cambiata": nuova != _m.VERSIONE, "messaggio": msg, "dettagli": ["%s: %s" % (str(d).replace(str(h), "~"), "ok" if good else "NON aggiornata — " + (riga[0] if riga else "")) for d, good, riga in esiti]}
 
 
+try: from fcore import prompt as PRV
+except ImportError: from . import prompt as PRV
+
+
 def _rk(r): return "%s|%s" % (r.get("sessione") or "", r.get("inizio") or "")
 
 
@@ -240,7 +244,12 @@ def stato_pannello(prompt=True, cc=None, cp=None):
     sm = lib.dir_() / "STATE.md"; hl = lib.leggi_righe("handoff.jsonl", 5)
     chiusi = [t for t in ts if t["fine"]]
     ultimo = max(chiusi, key=lambda t: t["fine"]) if chiusi else None
-    rq_pub = [dict(r, rk=_rk(r), risposta=r["risposta"] if prompt else "", domanda=r["domanda"] if prompt else "") for r in rich]
+    rq_pub = []; resto = 200000                                           # testo intero dei prompt, fino a 200 KB in tutto (i piu recenti prima)
+    for r in rich:
+        dm = r["domanda"] if prompt else ""; intero = len(dm) <= resto; resto -= len(dm) if intero else 0
+        try: val = PRV.valuta(dm, r.get("fonte")) if prompt else None
+        except Exception: val = None
+        rq_pub.append(dict(r, rk=_rk(r), risposta=r["risposta"] if prompt else "", domanda=dm if intero else dm[:600] + "…", prompt_voto=val))
     return {"progetto": rad.name, "aggiornato": time.strftime("%Y-%m-%d %H:%M:%S"), "radice": rad.name, "corrente": cur, "modo": lib.modo(), "nota_piano": nota_piano,
             "richieste": rq_pub, "riprendere": RQ.riprendere(rich, eventi) if prompt else None,
             "piano_attivo": str(att) if att else None, "piani": piani, "task": ts,

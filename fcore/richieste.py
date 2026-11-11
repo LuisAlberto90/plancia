@@ -64,7 +64,7 @@ def _somma(r, cwd, n, i):
 
 
 def _nuova(domanda, ts, fonte, sid):
-    return {"domanda": lib.redigi_testo(domanda, 400), "inizio": ts, "fine": ts, "fonte": fonte, "sessione": sid, "token_lavoro": 0, "token_riletti": 0, "ragionamento": 0,
+    return {"domanda": lib.redigi_testo(domanda, 20000), "inizio": ts, "fine": ts, "fonte": fonte, "sessione": sid, "token_lavoro": 0, "token_riletti": 0, "ragionamento": 0,
             "strumenti": {}, "file": [], "comandi": [], "errori": 0, "sotto_agenti": 0, "risposta": "", "rami": None, "attivita": [], "finita": False, "_id": {}, "_passo": None, "piano_scritto": False, "ambiente": [], "righe": {}}
 
 
