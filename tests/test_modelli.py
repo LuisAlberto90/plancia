@@ -1,5 +1,5 @@
 """Modello per richiesta, skill usate, aggregazione per modello, proposte «impara dai prompt» (skill da migliorare / ampliare / creare)."""
-import json, os, sys, tempfile
+import sys, tempfile
 from pathlib import Path
 Q = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Q))
