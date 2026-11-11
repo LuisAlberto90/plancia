@@ -84,6 +84,27 @@ def _num(x, nomi):
     return 0
 
 
+def _usi(x, out, prof=0):
+    """Tutti gli oggetti della richiesta che dichiarano promptTokens (risultato finale e record «usage»): VS Code li mette in piu punti."""
+    if prof > 10: return
+    if isinstance(x, dict):
+        if isinstance(x.get("promptTokens"), (int, float)) and x["promptTokens"] > 0: out.append(x)
+        for v in x.values(): _usi(v, out, prof + 1)
+    elif isinstance(x, list):
+        for v in x[:500]: _usi(v, out, prof + 1)
+
+
+def _pensiero(x, prof=0):
+    """Somma dei token di ragionamento (toolCallRounds[].thinking.tokens)."""
+    if prof > 10: return 0
+    if isinstance(x, dict):
+        t = x.get("thinking")
+        n = int(t["tokens"]) if isinstance(t, dict) and isinstance(t.get("tokens"), (int, float)) else 0
+        return n + sum(_pensiero(v, prof + 1) for k, v in x.items() if k != "thinking")
+    if isinstance(x, list): return sum(_pensiero(v, prof + 1) for v in x[:500])
+    return 0
+
+
 def richieste(rad, giorni_max=None):
     """Richieste della chat di VS Code per la cartella `rad`: [{inizio, domanda, token_in, token_out, stimato, modello}]. Mai un errore."""
     chiave = str(rad); ora = time.time()
@@ -95,17 +116,24 @@ def richieste(rad, giorni_max=None):
             for f in list((ws / "chatSessions").glob("*.json")) + list((ws / "chatSessions").glob("*.jsonl")):
                 try: sess = _leggi(f)
                 except Exception: continue
+                try: m_ = ((sess.get("inputState") or {}).get("selectedModel") or {}).get("metadata") or {}; lim_sess = int(m_.get("maxInputTokens") or m_.get("maxContextWindowTokens") or 0)
+                except Exception: lim_sess = 0
                 for q in sess.get("requests") or []:
                     try:
                         dom = (q.get("message") or {}).get("text") or ""
                         ris = _testo(q.get("response"))
                         res = q.get("result") or {}
-                        ti = _num(res, ("promptTokens", "inputTokens")); to = _num(res, ("outputTokens", "completionTokens"))
-                        stim = not (ti or to)
+                        usi = []; _usi(q, usi); ctx = max([int(u["promptTokens"]) for u in usi] or [0])
+                        best = max(usi, key=lambda u: u.get("promptTokens") or 0) if usi else {}
+                        to = max([int(u.get("completionTokens") or u.get("outputTokens") or 0) for u in usi] or [0]) or _num(res, ("outputTokens", "completionTokens"))
+                        pens = _pensiero(q); lim = _num(q.get("result") or {}, ("maxInputTokens",)) or _num(q.get("result") or {}, ("maxContextWindowTokens",)) or lim_sess
+                        det = [{"nome": str(d.get("label") or d.get("category") or "?")[:40], "pct": float(d.get("percentageOfPrompt") or 0)} for d in (best.get("promptTokenDetails") or []) if isinstance(d, dict)]
+                        stim = not (ctx or to)
+                        ti = 0
                         if stim: ti, to = max(1, len(dom) // 4), len(ris) // 4
                         ts = q.get("timestamp") or sess.get("creationDate") or 0
                         ini = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(ts / 1000)) if ts else ""
-                        out.append({"inizio": ini, "domanda": dom, "token_in": ti, "token_out": to, "stimato": stim, "modello": str(q.get("modelId") or (res.get("metadata") or {}).get("modelId") or "")[:40]})
+                        out.append({"inizio": ini, "domanda": dom, "token_in": ti, "token_out": to, "ctx": ctx, "ctx_max": lim, "ragionamento": pens, "dettaglio": det, "stimato": stim, "modello": str(q.get("modelId") or (res.get("metadata") or {}).get("modelId") or "")[:40]})
                     except Exception: continue
     out.sort(key=lambda r: r["inizio"], reverse=True)
     _C[chiave] = (ora, out)

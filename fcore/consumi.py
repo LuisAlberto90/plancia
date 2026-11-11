@@ -51,16 +51,24 @@ def _progetto(rad, da):
     rich = RQ.tutte(rad, 5000)
     try: vs = VC.richieste(rad)
     except Exception: vs = []
-    if vs: rich = [r for r in rich if r.get("fonte") != "vscode"] + [{"inizio": v["inizio"], "fonte": "vscode", "domanda": v["domanda"], "token_in": v["token_in"], "token_out": v["token_out"], "token_lavoro": v["token_in"] + v["token_out"],
-                                                                      "stimato": v["stimato"], "sessione": "vs"} for v in vs]
+    if vs: rich = [r for r in rich if r.get("fonte") != "vscode"] + [{"inizio": v["inizio"], "fonte": "vscode", "domanda": v["domanda"], "token_in": v.get("token_in", 0), "token_out": v.get("token_out", 0), "token_lavoro": v.get("token_in", 0) + v.get("token_out", 0),
+                                                                      "ragionamento": v.get("ragionamento", 0), "ctx": v.get("ctx", 0), "ctx_max": v.get("ctx_max", 0), "dettaglio": v.get("dettaglio") or [], "stimato": v["stimato"], "sessione": "vs"} for v in vs]
     p = {"radice": str(rad), "nome": Path(rad).name, "richieste": 0, "misurate": 0, "non_misurabili": 0, "stimate": 0, "lavoro": 0, "riletti": 0, "ragionamento": 0,
-         "ingresso": 0, "risposte": 0, "scritti": 0, "stima_lavoro": 0, "fonti": {}, "giorni": {}, "top": [], "ultimo": ""}
+         "ingresso": 0, "risposte": 0, "scritti": 0, "stima_lavoro": 0, "contesto": None, "fonti": {}, "giorni": {}, "top": [], "ultimo": ""}
     sess = set()
     for r in rich:
         g = str(r.get("inizio") or "")[:10]
         if da and g < da: continue
         lav = int(r.get("token_lavoro") or 0); ril = int(r.get("token_riletti") or 0); rag = int(r.get("ragionamento") or 0)
-        mis = (lav + ril) > 0; f = r.get("fonte") or "?"; stim = bool(r.get("stimato"))
+        ctx = int(r.get("ctx") or 0)
+        if ctx and g:
+            lim = int(r.get("ctx_max") or 0); c0 = p["contesto"]
+            if c0 is None: c0 = p["contesto"] = {"ultimo": 0, "max": 0, "pct": 0, "picco": 0, "picco_pct": 0, "quando": "", "dettaglio": [], "richieste": 0, "somma": 0}
+            c0["richieste"] += 1; c0["somma"] += ctx
+            if ctx > c0["picco"]: c0["picco"] = ctx; c0["picco_pct"] = round(ctx * 100 / lim, 1) if lim else 0
+            if str(r.get("inizio") or "") >= c0["quando"]:
+                c0.update({"ultimo": ctx, "max": lim, "pct": round(ctx * 100 / lim, 1) if lim else 0, "quando": str(r.get("inizio") or ""), "dettaglio": [{"nome": d["nome"], "token": int(ctx * d["pct"] / 100), "pct": d["pct"]} for d in (r.get("dettaglio") or [])]})
+        mis = (lav + ril + ctx) > 0; f = r.get("fonte") or "?"; stim = bool(r.get("stimato"))
         if not (r.get("token_in") or r.get("token_out") or r.get("token_scritti")) and lav: r = dict(r, token_in=lav)      # vecchi dati senza divisione: tutto in "ingresso"
         p["richieste"] += 1; p["misurate" if mis and not stim else "non_misurabili" if not mis else "stimate"] += 1
         p["lavoro"] += lav; p["riletti"] += ril; p["ragionamento"] += rag

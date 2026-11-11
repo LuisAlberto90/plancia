@@ -386,7 +386,7 @@ _u9 = Path(tempfile.mkdtemp()); _prj9 = Path(tempfile.mkdtemp()) / "miaApp"; _pr
 _ws9 = _u9 / "Code" / "User" / "workspaceStorage" / "abc"; (_ws9 / "chatSessions").mkdir(parents=True)
 (_ws9 / "workspace.json").write_text(json.dumps({"folder": "file://" + str(_prj9).replace("\\", "/") if str(_prj9).startswith("/") else "file:///" + str(_prj9).replace("\\", "/")}), encoding="utf-8")
 _q1 = {"timestamp": 1762851600000, "message": {"text": "x" * 400}, "response": [{"value": "y" * 800}, {"kind": "toolInvocationSerialized", "value": "z" * 5000}], "result": {}}
-_q2 = {"timestamp": 1762855200000, "message": {"text": "ciao"}, "response": [{"value": "ok"}], "result": {"metadata": {"promptTokens": 5000, "outputTokens": 700}}, "modelId": "gpt"}
+_q2 = {"timestamp": 1762855200000, "message": {"text": "ciao"}, "response": [{"value": "ok"}, {"promptTokens": 8000, "completionTokens": 650, "promptTokenDetails": [{"category": "System", "label": "Tool Definitions", "percentageOfPrompt": 25}, {"category": "Messages", "label": "Messages", "percentageOfPrompt": 75}]}], "result": {"metadata": {"promptTokens": 5000, "outputTokens": 700, "maxInputTokens": 100000, "toolCallRounds": [{"thinking": {"tokens": 30}}, {"thinking": {"tokens": 12}}]}}, "modelId": "gpt"}
 (_ws9 / "chatSessions" / "a.json").write_text(json.dumps({"requests": [_q1, _q2]}), encoding="utf-8")
 (_ws9 / "chatSessions" / "b.jsonl").write_text("\n".join(json.dumps(m) for m in [{"kind": 0, "v": {"creationDate": 1762851600000, "requests": []}}, {"kind": 2, "k": ["requests"], "v": [dict(_q1, message={"text": "w" * 40})]}]), encoding="utf-8")
 _oa = os.environ.get("APPDATA"); _oh2 = os.environ.get("HOME"); os.environ["APPDATA"] = str(_u9); os.environ["HOME"] = os.environ["USERPROFILE"] = str(_u9 / "h")
@@ -400,7 +400,7 @@ finally:
     else: os.environ["APPDATA"] = _oa
     os.environ["HOME"] = os.environ["USERPROFILE"] = _oh2 or ""
 v("chat VS Code: trova le sessioni del progetto (json e jsonl a mutazioni)", len(_vr) == 3 and not _vn, [(r["token_in"], r["token_out"], r["stimato"]) for r in _vr])
-v("chat VS Code: token reali se ci sono, altrimenti stima dal testo senza contare gli strumenti", any(r["token_in"] == 5000 and r["token_out"] == 700 and not r["stimato"] for r in _vr) and any(r["token_in"] == 100 and r["token_out"] == 200 and r["stimato"] for r in _vr), _vr)
+v("chat VS Code: token reali (contesto, risposte, ragionamento, finestra, categorie) e stima dal testo se mancano", any(r["ctx"] == 8000 and r["token_out"] == 700 and r["ragionamento"] == 42 and r["ctx_max"] == 100000 and not r["stimato"] and r["dettaglio"][0]["nome"] == "Tool Definitions" for r in _vr) and any(r["token_in"] == 100 and r["token_out"] == 200 and r["stimato"] for r in _vr), _vr)
 os.environ["APPDATA"] = str(_u9); os.environ["HOME"] = os.environ["USERPROFILE"] = str(_u9 / "h")
 try: _st9 = _VC.struttura()
 finally:
@@ -417,6 +417,10 @@ _ov, _orq = _CO.VC.richieste, _CO.RQ.tutte
 _CO.VC.richieste = lambda r: [{"inizio": _oggi9 + "T12:00:00", "domanda": "chat", "token_in": 300, "token_out": 500, "stimato": True, "modello": ""}]; _CO.RQ.tutte = lambda rad, n=40: _rq10; _CO._C.clear()
 _c10 = _CO.consumi([str(_jt)], 1); _CO.VC.richieste, _CO.RQ.tutte = _ov, _orq; _CO._C.clear()
 _t10 = _c10["totali"]
+_CO.VC.richieste = lambda r: [{"inizio": _oggi9 + "T09:00:00", "domanda": "a", "token_in": 0, "token_out": 500, "ctx": 20000, "ctx_max": 100000, "ragionamento": 40, "dettaglio": [{"nome": "Messages", "pct": 50}], "stimato": False},
+                              {"inizio": _oggi9 + "T13:00:00", "domanda": "b", "token_in": 0, "token_out": 300, "ctx": 60000, "ctx_max": 100000, "ragionamento": 0, "dettaglio": [{"nome": "Messages", "pct": 50}, {"nome": "Tool Definitions", "pct": 10}], "stimato": False}]
+_CO.RQ.tutte = lambda rad, n=40: []; _CO._C.clear(); _ct = _CO.consumi([str(_jt)], 1)["progetti"][0]; _CO.VC.richieste, _CO.RQ.tutte = _ov, _orq; _CO._C.clear()
+v("consumi: finestra di contesto della chat di VS Code (ultima richiesta, picco, categorie) senza sommare la cronologia come lavoro", _ct["contesto"]["ultimo"] == 60000 and _ct["contesto"]["pct"] == 60.0 and _ct["contesto"]["picco"] == 60000 and _ct["contesto"]["dettaglio"][0] == {"nome": "Messages", "token": 30000, "pct": 50} and _ct["lavoro"] == 800 and _ct["misurate"] == 2, _ct)
 v("consumi: chat VS Code con token stimati sostituisce le righe senza numero, marcata come stima", _t10["richieste"] == 2 and _t10["stimate"] == 1 and _t10["stima_lavoro"] == 800 and _t10["non_misurabili"] == 0, _t10)
 v("consumi: input, risposte e cache scritta separati; la Plancia compare nei totali", _t10["ingresso"] == 500 and _t10["risposte"] == 1100 and _t10["scritti"] == 200 and _t10["plancia"] > 0, _t10)
 import io as _io9, zipfile as _zf9
