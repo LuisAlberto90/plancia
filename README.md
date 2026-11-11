@@ -57,6 +57,7 @@ Nel pannello:
 - **Piano**: il grafo dei passi dell'ultima richiesta, con voto di qualità (0-10). Clic su un passo = cosa ha fatto (file, comandi, errori).
 - **Richieste**, **Riprendere**: cosa è successo e da dove ripartire.
 - **Prompt intero e valutato**: in Lavoro vedi tutta la richiesta (riquadro che scorre) e «Com'era scritto questo prompt?»: regole fisse prese dalle guide ufficiali di GitHub Copilot e Claude Code, senza AI, con cosa aggiungere e uno schema da copiare. Stessa cosa per le skill scritte da te.
+- **Consumi per progetto**: tab «Consumi» (e bottone nella Home): token di lavoro e riletti per progetto, per giorno, per agente e le richieste più pesanti; periodo a scelta e CSV scaricabile. Dati letti dalle trascrizioni di Claude Code e Copilot CLI; la chat di VS Code non fornisce i token, quindi quelle richieste si contano ma non si misurano. Nessuna conversione in euro.
 - **Tema scuro o chiaro**: bottone in alto a destra; la scelta resta salvata nel browser (la prima volta segue il sistema).
 - **Cosa provare insieme**: per ogni richiesta che ha modificato codice, i blocchi toccati e chi li usa (letti dagli import, senza AI): se un blocco molto usato cambia, conviene provare anche chi lo usa. Compare nelle richieste e nel prompt pronto del box «Oggi».
 - **Salute**: cosa non va e come sistemarlo, e il **livello del progetto** (da 0 a 4) con il prossimo passo.

@@ -19,3 +19,4 @@
 ## Controlli automatici
 Ogni push esegue: test (Windows e Linux, Python 3.9 e 3.13), `ruff` (lint + regole di sicurezza) e `bandit`.
 - **Testo dei prompt:** dalla 0.33 la richiesta viene registrata intera (fino a 20.000 caratteri) in `.factory/eventi.jsonl`, sempre passando dal filtro che oscura i segreti; resta sul PC, come il resto. La valutazione del prompt è a regole fisse, calcolata in locale, senza AI.
+- **Consumi:** `GET /api/consumi` legge solo le trascrizioni locali dei progetti registrati e restituisce numeri e la prima riga delle richieste (già oscurata dal filtro dei segreti); non scrive nulla.

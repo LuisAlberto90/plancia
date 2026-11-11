@@ -369,4 +369,35 @@ v("skill: consigli se la descrizione non dice quando usarla; niente se e scritta
 v("prompt tagliato: il giudizio dice che e parziale, non \"completo\"", "parziale" in _PV.valuta("Read-only audit. Find package.json, frontend folders, angular.json/…")["giudizio"])
 _vl = _PV.valuta("Fai una revisione in sola lettura di OrderMonitoringService. NON modificare file, non creare patch. Riassumi i flussi e riporta il risultato dei test con il comando documentato nel contesto.")
 v("prompt di sola lettura: niente richiesta di esempio ne di verifica-modifiche; c'e il prompt per la revisione con agente", _vl["tipo"] == "lettura" and not any("esempio" in x["regola"] for x in _vl["voci"]) and _vl["rivedi"].startswith("Review the prompt"), _vl["voci"])
+from fcore import consumi as _CO
+_oggi9 = time.strftime("%Y-%m-%d"); _ieri9 = time.strftime("%Y-%m-%d", time.localtime(time.time() - 86400)); _vec9 = "2020-01-01"
+_rq9 = [{"inizio": _oggi9 + "T10:00:00", "fonte": "claude", "domanda": "grande", "token_lavoro": 9000, "token_riletti": 50000, "ragionamento": 400},
+        {"inizio": _oggi9 + "T11:00:00", "fonte": "vscode", "domanda": "chat vscode", "token_lavoro": 0, "token_riletti": 0, "ragionamento": 0},
+        {"inizio": _ieri9 + "T09:00:00", "fonte": "copilot", "domanda": "piccola", "token_lavoro": 1000, "token_riletti": 0, "ragionamento": 0},
+        {"inizio": _vec9 + "T09:00:00", "fonte": "claude", "domanda": "vecchia", "token_lavoro": 500, "token_riletti": 0, "ragionamento": 0}]
+_old9 = _CO.RQ.tutte; _CO.RQ.tutte = lambda rad, n=40: _rq9; _CO._C.clear()
+_c1 = _CO.consumi([str(_jt)], 1); _c7 = _CO.consumi([str(_jt)], 7); _c0 = _CO.consumi([str(_jt)], 0); _CO.RQ.tutte = _old9
+v("consumi: oggi = solo le richieste di oggi; token di lavoro e cache separati", _c1["totali"]["richieste"] == 2 and _c1["totali"]["lavoro"] == 9000 and _c1["totali"]["riletti"] == 50000, _c1["totali"])
+v("consumi: la chat di VS Code si conta ma e non misurabile, fuori dai token", _c1["totali"]["non_misurabili"] == 1 and _c1["totali"]["misurate"] == 1)
+v("consumi: 7 giorni include ieri ma non il 2020; tutto include tutto; top ordinato per consumo", _c7["totali"]["lavoro"] == 10000 and _c0["totali"]["lavoro"] == 10500 and _c0["progetti"][0]["top"][0]["domanda"] == "grande" and len(_c7["progetti"][0]["giorni"]) == 2, _c7["totali"])
+import types as _ty, shutil as _sh9
+from fcore import pannello as _PNL
+_h9 = Path(tempfile.mkdtemp())
+for _n9 in ("plancia", "plancia-7cad17cb"):
+    (_h9 / ".copilot" / "installed-plugins" / "_direct" / _n9 / "fcore").mkdir(parents=True); (_h9 / ".copilot" / "installed-plugins" / "_direct" / _n9 / "fcore" / "auto.py").write_text("x", encoding="utf-8")
+_chiam = []
+def _fake_run(cmd, **kw):
+    _chiam.append((cmd[:3], kw.get("encoding")))
+    return _ty.SimpleNamespace(returncode=1, stdout="", stderr="Failed to install plugin: The process cannot access the file because it is being used by another process. (os error 32)")
+_oh = (os.environ.get("HOME"), os.environ.get("USERPROFILE")); os.environ["HOME"] = os.environ["USERPROFILE"] = str(_h9)
+_ow, _or = _sh9.which, subprocess.run
+_sh9.which = lambda n: "copilot" if n == "copilot" else None; subprocess.run = _fake_run
+try: _ag = _PNL._aggiorna()
+finally:
+    _sh9.which, subprocess.run = _ow, _or
+    for _k9, _v9 in zip(("HOME", "USERPROFILE"), _oh):
+        if _v9 is None: os.environ.pop(_k9, None)
+        else: os.environ[_k9] = _v9
+v("aggiorna: il comando di Copilot CLI parte una sola volta anche con due copie, in UTF-8", len(_chiam) == 1 and _chiam[0][1] == "utf-8", _chiam)
+v("aggiorna: file bloccato (os error 32) -> messaggio chiaro su cosa chiudere", "chiudi" in _ag["messaggio"].lower() and any("chat di Copilot CLI" in d for d in _ag["dettagli"]) and not _ag["ok"], _ag)
 print("\n%d ok, %d KO" % (ok, ko)); sys.exit(1 if ko else 0)

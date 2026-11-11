@@ -147,23 +147,38 @@ def _aggiorna():
     for base, pat in ((h / ".vscode" / "agent-plugins", "*/*/*"), (h / ".copilot" / "installed-plugins", "*/*"), (h / ".copilot" / "installed-plugins", "*")):
         for d in (base.glob(pat) if base.is_dir() else []):
             if (d / "fcore" / "auto.py").is_file(): copie.add(d.resolve())
-    kw = {"capture_output": True, "text": True, "timeout": 90, "stdin": subprocess.DEVNULL}
+    kw = {"capture_output": True, "text": True, "encoding": "utf-8", "errors": "replace", "timeout": 90, "stdin": subprocess.DEVNULL}
     if os.name == "nt": kw["creationflags"] = 0x08000000
+    ultima = lambda r: (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]
+    cop_dirs = [d for d in sorted(copie) if not (d / ".git").exists() and ".copilot" in d.parts]
+    cop_esito = None                                                      # `copilot plugin update plancia` e uno solo per tutte le copie di Copilot CLI: si lancia una volta
     for d in sorted(copie):
         if (d / ".git").exists() and git:
             r = subprocess.run([git, "-C", str(d), "pull", "--ff-only"], **kw)  # noqa: S603
-            esiti.append((d, r.returncode == 0, (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]))
-        elif ".copilot" in d.parts and cop:
-            r = subprocess.run([cop, "plugin", "update", "plancia"], **kw)  # noqa: S603
-            esiti.append((d, r.returncode == 0, (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]))
+            esiti.append((d, r.returncode == 0, ultima(r)))
+        elif d in cop_dirs and cop:
+            if cop_esito is None:
+                r = subprocess.run([cop, "plugin", "update", "plancia"], **kw)  # noqa: S603
+                cop_esito = (r.returncode == 0, ultima(r))
+            esiti.append((d, cop_esito[0], cop_esito[1]))
         else: esiti.append((d, False, ["non so aggiornare questa copia da sola (manca git o la CLI di Copilot)"]))
     try: nuova = re.search(r'VERSIONE\s*=\s*"([^"]+)"', (QUI / "mcp.py").read_text(encoding="utf-8")).group(1)
     except Exception: nuova = _m.VERSIONE
     ok = all(e[1] for e in esiti)
+    bloccata = [e for e in esiti if not e[1] and re.search(r"(?i)os error 32|used by another process|in uso|being used", " ".join(e[2]))]
+    def spiega(good, riga):
+        if good: return "ok"
+        t = " ".join(riga)
+        if re.search(r"(?i)os error 32|used by another process|being used", t): return "NON aggiornata: una chat di Copilot CLI e ancora aperta e tiene bloccati i file"
+        return "NON aggiornata — " + (riga[0] if riga else "")
     if nuova != _m.VERSIONE: msg = "Aggiornata dalla %s alla %s: tra pochi secondi la pagina si ricarica da sola." % (_m.VERSIONE, nuova)
     elif ok: msg = "Hai gia l'ultima versione (%s)." % _m.VERSIONE
+    elif bloccata: msg = "La copia di VS Code e a posto, ma quella di Copilot CLI no: chiudi le chat di Copilot CLI ancora aperte (anche in altri terminali) e clicca di nuovo. Se non hai nessuna chat aperta, chiudi e riapri il terminale."
     else: msg = "Non sono riuscita ad aggiornare tutto."
-    return {"ok": ok, "cambiata": nuova != _m.VERSIONE, "messaggio": msg, "dettagli": ["%s: %s" % (str(d).replace(str(h), "~"), "ok" if good else "NON aggiornata — " + (riga[0] if riga else "")) for d, good, riga in esiti]}
+    dett = []
+    for d, good, riga in esiti:
+        dett.append("%s: %s" % (str(d).replace(str(h), "~"), spiega(good, riga)))
+    return {"ok": ok, "cambiata": nuova != _m.VERSIONE, "messaggio": msg, "dettagli": dett}
 
 
 try: from fcore import prompt as PRV
@@ -321,6 +336,17 @@ def main(a):
                         except ImportError: from . import prove as PV
                         n = parse_qs(u.query).get("n", [""])[0]
                         d = PV.valuta(int(n)) if u.path == "/api/prova" and n.isdigit() and not o.token else {"prove": PV.elenco()}
+                    except Exception:
+                        import traceback; d = {"errore_pannello": traceback.format_exc()[-2500:]}
+                    finally: os.environ["FACTORY_ROOT"] = str(rad)
+                body, ct = json.dumps(d, ensure_ascii=False).encode(), "application/json"
+            elif u.path == "/api/consumi":
+                with BLOCCO:
+                    try:
+                        try: from fcore import consumi as CO
+                        except ImportError: from . import consumi as CO
+                        g = parse_qs(u.query).get("g", ["7"])[0]; g = int(g) if g.isdigit() and int(g) in (0, 1, 7, 30) else 7
+                        d = CO.consumi(PN.progetti(), g)
                     except Exception:
                         import traceback; d = {"errore_pannello": traceback.format_exc()[-2500:]}
                     finally: os.environ["FACTORY_ROOT"] = str(rad)
