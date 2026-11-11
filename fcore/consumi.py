@@ -130,3 +130,40 @@ def consumi(radici, giorni=7):
     d = {"giorni": giorni, "da": da, "progetti": out, "totali": tot, "calcolato": time.strftime("%H:%M:%S")}
     _C[chiave] = (ora, d)
     return d
+
+
+def righe(radici, giorni=90):
+    """Elenco piatto delle richieste (tutti i progetti) per la pagina Consumi: filtri, grafici e regole di spreco si calcolano nel browser.
+    giorni=0 -> tutto. Mai un errore: un progetto che non si legge viene saltato."""
+    da = _taglio(giorni); out = []; progetti = []; vecchio = os.environ.get("FACTORY_ROOT")
+    try:
+        for i, rad in enumerate(radici):
+            os.environ["FACTORY_ROOT"] = str(rad)
+            try:
+                rich = RQ.tutte(rad, 5000)
+                try: vs = VC.richieste(rad)
+                except Exception: vs = []
+                if vs: rich = [r for r in rich if r.get("fonte") != "vscode"] + [{"inizio": v["inizio"], "fonte": "vscode", "domanda": v["domanda"], "token_in": v.get("token_in", 0), "token_out": v.get("token_out", 0), "token_lavoro": v.get("token_in", 0) + v.get("token_out", 0), "ragionamento": v.get("ragionamento", 0),
+                                                                                  "modelli": {v.get("modello") or "?": [v.get("token_in", 0) + v.get("token_out", 0), 0, v.get("token_out", 0)]}, "ctx": v.get("ctx", 0), "ctx_max": v.get("ctx_max", 0), "stimato": v["stimato"], "sessione": v.get("sessione") or "vs", "titolo": v.get("titolo", "")} for v in vs]
+                n0 = len(out)
+                for r in rich:
+                    g = str(r.get("inizio") or "")[:10]
+                    if da and g < da: continue
+                    mm = r.get("modelli") or {}; mod = nome_modello(max(mm, key=lambda k: mm[k][0] + mm[k][2]) if mm else "")
+                    out.append({"p": len(progetti), "t": str(r.get("inizio") or "")[:16], "f": r.get("fonte") or "?", "m": mod, "s": "%d|%s" % (len(progetti), r.get("sessione") or g),
+                                "d": (r.get("domanda") or "").strip()[:300], "L": int(r.get("token_lavoro") or 0), "R": int(r.get("token_riletti") or 0), "O": int(r.get("token_out") or 0), "I": int(r.get("token_in") or 0),
+                                "W": int(r.get("token_scritti") or 0), "G": int(r.get("ragionamento") or 0), "c": int(r.get("ctx") or 0), "cm": int(r.get("ctx_max") or 0), "st": 1 if r.get("stimato") else 0,
+                                "pi": 1 if r.get("piano_scritto") else 0, "sk": r.get("skills") or [], "ti": str(r.get("titolo") or "")[:80], "pc": int(r.get("plancia_chiamate") or 0), "pt": int(r.get("plancia_token") or 0)})
+                sess = {o["s"] for o in out[n0:]}
+                ctx = None; cv = [v for v in vs if v.get("ctx")]
+                if cv:
+                    u = max(cv, key=lambda v: v["inizio"]); lim = int(u.get("ctx_max") or 0); pk = max(cv, key=lambda v: v["ctx"])
+                    ctx = {"ultimo": u["ctx"], "max": lim, "picco": pk["ctx"], "dettaglio": [{"nome": d["nome"], "pct": d["pct"], "token": int(u["ctx"] * d["pct"] / 100)} for d in (u.get("dettaglio") or [])]}
+                progetti.append({"nome": Path(rad).name, "radice": str(rad), "plancia": peso_plancia(rad, len(sess), len(out) - n0), "contesto": ctx})
+            except Exception:
+                progetti.append({"nome": Path(rad).name, "radice": str(rad), "plancia": None})
+    finally:
+        if vecchio is None: os.environ.pop("FACTORY_ROOT", None)
+        else: os.environ["FACTORY_ROOT"] = vecchio
+    out.sort(key=lambda x: x["t"], reverse=True)
+    return {"giorni": giorni, "progetti": progetti, "righe": out[:6000], "troncate": len(out) > 6000, "calcolato": time.strftime("%H:%M:%S")}

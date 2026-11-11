@@ -318,6 +318,8 @@ def _porta_occupata(porta):
 def html(snapshot=None):
     from fcore import mcp as _m
     h = (QUI / "pannello.html").read_text(encoding="utf-8").replace("__PLANCIA_V__", _m.VERSIONE)
+    try: h = h.replace("/*__CONSUMI_UI__*/", (QUI / "consumi_ui.js").read_text(encoding="utf-8"))
+    except OSError: pass
     return h.replace("<script>", "<script>window.SNAPSHOT=%s;" % json.dumps(snapshot, ensure_ascii=False).replace("</", "<\\/"), 1) if snapshot is not None else h
 
 
@@ -368,6 +370,17 @@ def main(a):
                         except ImportError: from . import prove as PV
                         n = parse_qs(u.query).get("n", [""])[0]
                         d = PV.valuta(int(n)) if u.path == "/api/prova" and n.isdigit() and not o.token else {"prove": PV.elenco()}
+                    except Exception:
+                        import traceback; d = {"errore_pannello": traceback.format_exc()[-2500:]}
+                    finally: os.environ["FACTORY_ROOT"] = str(rad)
+                body, ct = json.dumps(d, ensure_ascii=False).encode(), "application/json"
+            elif u.path == "/api/consumi-righe":
+                with BLOCCO:
+                    try:
+                        try: from fcore import consumi as CO
+                        except ImportError: from . import consumi as CO
+                        g = parse_qs(u.query).get("g", ["90"])[0]; g = int(g) if g.isdigit() and int(g) in (0, 90) else 90
+                        d = CO.righe(PN.progetti(), g)
                     except Exception:
                         import traceback; d = {"errore_pannello": traceback.format_exc()[-2500:]}
                     finally: os.environ["FACTORY_ROOT"] = str(rad)

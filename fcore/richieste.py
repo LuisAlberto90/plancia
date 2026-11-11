@@ -90,7 +90,7 @@ def _mod(r, nome, lavoro, riletti, out):
 
 def _nuova(domanda, ts, fonte, sid):
     return {"domanda": lib.redigi_testo(domanda, 20000), "inizio": ts, "fine": ts, "fonte": fonte, "sessione": sid, "token_lavoro": 0, "token_riletti": 0, "ragionamento": 0, "token_in": 0, "token_out": 0, "token_scritti": 0,
-            "strumenti": {}, "file": [], "comandi": [], "errori": 0, "sotto_agenti": 0, "risposta": "", "rami": None, "attivita": [], "finita": False, "_id": {}, "_passo": None, "piano_scritto": False, "ambiente": [], "righe": {}, "modelli": {}, "skills": [], "plancia_chiamate": 0, "plancia_token": 0}
+            "strumenti": {}, "file": [], "comandi": [], "errori": 0, "sotto_agenti": 0, "risposta": "", "rami": None, "attivita": [], "finita": False, "_id": {}, "_passo": None, "piano_scritto": False, "ambiente": [], "righe": {}, "modelli": {}, "skills": [], "plancia_chiamate": 0, "plancia_token": 0, "ctx": 0}
 
 
 PROVA = re.compile(r"(?i)\b(pytest|jest|karma|vitest|unittest|run_tests|mvnw?(\.cmd)?\b.*\b(test|verify|package|install|compile)|gradlew?(\.bat)?\s+.*\b(test|build|check)|npm\s+(run\s+)?(test|build|lint)|pnpm\s+(run\s+)?(test|build|lint)|yarn\s+(test|build|lint)|ng\s+(test|build|lint)|tsc|ruff|flake8|mypy|eslint|dotnet\s+(test|build)|cargo\s+(test|build|check)|go\s+(test|build|vet)|make\s+(test|check|build)|python\S*\s+\S*tests?\S*)\b")
@@ -221,6 +221,7 @@ def da_claude(f):
             visti.add(mid); r["token_lavoro"] += u.get("input_tokens", 0) + u.get("output_tokens", 0) + u.get("cache_creation_input_tokens", 0)
             r["token_in"] += u.get("input_tokens", 0); r["token_out"] += u.get("output_tokens", 0); r["token_scritti"] += u.get("cache_creation_input_tokens", 0)
             r["token_riletti"] += u.get("cache_read_input_tokens", 0); r["ragionamento"] += (u.get("output_tokens_details") or {}).get("thinking_tokens", 0)
+            r["ctx"] = max(r["ctx"], u.get("input_tokens", 0) + u.get("cache_read_input_tokens", 0) + u.get("cache_creation_input_tokens", 0))
             _mod(r, m.get("model"), u.get("input_tokens", 0) + u.get("cache_creation_input_tokens", 0), u.get("cache_read_input_tokens", 0), u.get("output_tokens", 0))
         usa = False
         for b in c if isinstance(c, list) else []:

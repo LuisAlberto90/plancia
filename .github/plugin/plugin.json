@@ -1,6 +1,6 @@
 {
   "name": "plancia",
-  "version": "0.38.1",
+  "version": "0.39.0",
   "description": "Plancia: see what your coding agents do (plan graph, waiting, errors, loops, usage) and keep them safe (protected files, plan before edits). Works in every project once installed.",
   "author": {
     "name": "Luis Alberto Camargo"

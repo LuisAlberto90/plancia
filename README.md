@@ -103,6 +103,10 @@ Test della Plancia stessa: `python tests/run_tests.py` (il test del pannello nel
 
 
 
+## Consumi: sei schede
+
+La pagina Consumi ha sei schede: **C1 Sintesi** (KPI, consumo giorno per giorno, chi consuma, di cosa e fatto, modelli e agenti), **C2 Progetti** (una card per progetto, il clic apre il dettaglio sotto), **C3 Chat e richieste** (chat, passo per passo, richieste piu pesanti), **C4 Modelli e agenti** (elenco, dispersione, matrice progetto x modello), **C5 Sprechi e risparmio** (regole in token: contesto oltre 80%, richieste interrotte, tentativi ripetuti, fuori scala, domande brevi su modello costoso, cache poco usata) e **C6 Riepilogo** (scorecard di uso corretto, export/import JSON locale, stampa). Filtri comuni: periodo (anche da-a), progetto, agente, modello. Ogni card ha un pulsante ⓘ (cosa misura, come si calcola, su cosa). Niente euro e niente persone: solo token. Le regole sono euristiche calcolate sul PC, spiegate nell'ⓘ.
+
 ## Consumi: chi consuma cosa
 
 La schermata **Consumi** legge solo file gia presenti sul PC (zero token, zero rete) e separa, per progetto: cosa hai dato da leggere (input), le risposte scritte dall'agente, la cache scritta e la cache riletta. Claude Code e Copilot CLI danno i token reali. Anche la chat di VS Code li salva (`workspaceStorage/*/chatSessions`: `promptTokens`, `outputTokens`, finestra massima e ripartizione del contesto per categoria): Plancia mostra la **finestra di contesto** come l'indicatore di VS Code (ultima richiesta, picco, cosa la occupa) e non somma la cronologia ai token di lavoro, perché viene riletta a ogni richiesta. Solo dove VS Code non salva nulla il numero e una **stima dal testo** (4 caratteri = 1 token), marcata come tale. La Plancia non usa token: la sua voce e solo il testo che inietta nelle chat (regola del piano e descrizione della skill una volta per chat, promemoria dal secondo messaggio); se in un periodo non e stato scritto nessun piano, Consumi lo dice (costo senza beneficio) e spiega come spegnere la regola.

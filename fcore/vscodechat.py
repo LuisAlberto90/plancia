@@ -133,7 +133,7 @@ def richieste(rad, giorni_max=None):
                         if stim: ti, to = max(1, len(dom) // 4), len(ris) // 4
                         ts = q.get("timestamp") or sess.get("creationDate") or 0
                         ini = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(ts / 1000)) if ts else ""
-                        out.append({"inizio": ini, "domanda": dom, "token_in": ti, "token_out": to, "ctx": ctx, "ctx_max": lim, "ragionamento": pens, "dettaglio": det, "stimato": stim, "modello": str(q.get("modelId") or (res.get("metadata") or {}).get("modelId") or "")[:40]})
+                        out.append({"inizio": ini, "domanda": dom, "token_in": ti, "token_out": to, "ctx": ctx, "ctx_max": lim, "ragionamento": pens, "dettaglio": det, "stimato": stim, "sessione": f.stem[:8], "titolo": str(sess.get("customTitle") or "")[:80], "modello": str(q.get("modelId") or (res.get("metadata") or {}).get("modelId") or "")[:40]})
                     except Exception: continue
     out.sort(key=lambda r: r["inizio"], reverse=True)
     _C[chiave] = (ora, out)
