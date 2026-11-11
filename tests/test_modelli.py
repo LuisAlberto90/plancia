@@ -13,6 +13,7 @@ from fcore import richieste as R, consumi as C, pattern as P
 r = R._nuova("x", "t", "claude", "s")
 R._mod(r, "claude-sonnet-4-5-20250929", 100, 5000, 40); R._mod(r, "claude-opus-4-1", 10, 0, 5); R._mod(r, "", 1, 0, 1)
 check(r["modelli"]["claude-sonnet-4-5-20250929"] == [100, 5000, 40] and "?" in r["modelli"], "modello: i token vanno al modello che li ha prodotti")
+R._pl(r, {"command": "plancia piano nuovo T A B"}); check(r["plancia_chiamate"] == 1 and r["plancia_token"] >= 5, "chiamata al piano: conteggio e token")
 R._skill(r, "Skill", {"skill": "plugin:plancia-metodo"}); R._skill(r, "Read", {"file_path": "C:\\p\\.claude\\skills\\foo\\SKILL.md"})
 check(r["skills"] == ["plancia-metodo", "foo"], "skill usata: dallo strumento Skill e dalla lettura di SKILL.md")
 check(C.nome_modello("claude-sonnet-4-5-20250929") == "claude-sonnet-4-5" and C.nome_modello("") == "non dichiarato" and C.nome_modello("copilot/gpt-5") == "gpt-5", "nome modello leggibile")

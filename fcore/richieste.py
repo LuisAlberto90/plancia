@@ -76,6 +76,12 @@ def _skill(r, n, i):
     except Exception: pass
 
 
+def _pl(r, i):
+    """Una chiamata agli strumenti del piano: i token del testo che l'agente ha scritto per farla (stima 4 caratteri = 1 token)."""
+    try: r["plancia_chiamate"] += 1; r["plancia_token"] += max(1, len(json.dumps(i, ensure_ascii=False)) // 4)
+    except Exception: pass
+
+
 def _mod(r, nome, lavoro, riletti, out):
     """Somma i token di questa chiamata al modello che li ha prodotti (nome vuoto = non dichiarato)."""
     n = str(nome or "").strip()[:60] or "?"
@@ -84,7 +90,7 @@ def _mod(r, nome, lavoro, riletti, out):
 
 def _nuova(domanda, ts, fonte, sid):
     return {"domanda": lib.redigi_testo(domanda, 20000), "inizio": ts, "fine": ts, "fonte": fonte, "sessione": sid, "token_lavoro": 0, "token_riletti": 0, "ragionamento": 0, "token_in": 0, "token_out": 0, "token_scritti": 0,
-            "strumenti": {}, "file": [], "comandi": [], "errori": 0, "sotto_agenti": 0, "risposta": "", "rami": None, "attivita": [], "finita": False, "_id": {}, "_passo": None, "piano_scritto": False, "ambiente": [], "righe": {}, "modelli": {}, "skills": []}
+            "strumenti": {}, "file": [], "comandi": [], "errori": 0, "sotto_agenti": 0, "risposta": "", "rami": None, "attivita": [], "finita": False, "_id": {}, "_passo": None, "piano_scritto": False, "ambiente": [], "righe": {}, "modelli": {}, "skills": [], "plancia_chiamate": 0, "plancia_token": 0}
 
 
 PROVA = re.compile(r"(?i)\b(pytest|jest|karma|vitest|unittest|run_tests|mvnw?(\.cmd)?\b.*\b(test|verify|package|install|compile)|gradlew?(\.bat)?\s+.*\b(test|build|check)|npm\s+(run\s+)?(test|build|lint)|pnpm\s+(run\s+)?(test|build|lint)|yarn\s+(test|build|lint)|ng\s+(test|build|lint)|tsc|ruff|flake8|mypy|eslint|dotnet\s+(test|build)|cargo\s+(test|build|check)|go\s+(test|build|vet)|make\s+(test|check|build)|python\S*\s+\S*tests?\S*)\b")
@@ -223,7 +229,7 @@ def da_claude(f):
             if b.get("type") != "tool_use": continue
             usa = True; n = b.get("name", "?"); i = b.get("input") or {}; r["strumenti"][n] = r["strumenti"].get(n, 0) + 1
             tp, cosa = _azione(n, i, d.get("cwd")); _somma(r, d.get("cwd"), n, i); _skill(r, n, i)
-            if tp == "plancia": _segna(r, cosa); continue
+            if tp == "plancia": _segna(r, cosa); _pl(r, i); continue
             if n in ("Bash", "bash", "shell"):
                 for mk in MARCATORE.finditer(i.get("command") or ""): _segna(r, mk.group(0))    # `cd x; plancia passo D; pytest` -> il resto e del passo D
             if tp == "modifica" and n in ("Bash", "bash", "shell"):
@@ -270,7 +276,7 @@ def da_copilot(f):
                 try: a = json.loads(a)
                 except Exception: a = {"command": a}
             tp, cosa = _azione(n, a, None); _somma(r, None, n, a); _skill(r, n, a)
-            if tp == "plancia": _segna(r, cosa); continue
+            if tp == "plancia": _segna(r, cosa); _pl(r, a); continue
             if tp == "sotto-agente": subs.add(x.get("toolCallId"))
             if tp: r["_id"][x.get("toolCallId")] = len(r["attivita"]); r["attivita"].append({"tipo": tp, "cosa": cosa, "esito": "in corso", "ts": ts, "passo": r["_passo"]}); r["finita"] = False
             if any(s in n.lower() for s in ("edit", "create", "write")) and isinstance(a, dict) and (a.get("path") or a.get("file_path")):

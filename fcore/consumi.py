@@ -63,7 +63,7 @@ def _progetto(rad, da):
     if vs: rich = [r for r in rich if r.get("fonte") != "vscode"] + [{"inizio": v["inizio"], "fonte": "vscode", "domanda": v["domanda"], "token_in": v.get("token_in", 0), "token_out": v.get("token_out", 0), "token_lavoro": v.get("token_in", 0) + v.get("token_out", 0),
                                                                       "ragionamento": v.get("ragionamento", 0), "modelli": {v.get("modello") or "?": [v.get("token_in", 0) + v.get("token_out", 0), 0, v.get("token_out", 0)]}, "ctx": v.get("ctx", 0), "ctx_max": v.get("ctx_max", 0), "dettaglio": v.get("dettaglio") or [], "stimato": v["stimato"], "sessione": "vs"} for v in vs]
     p = {"radice": str(rad), "nome": Path(rad).name, "richieste": 0, "misurate": 0, "non_misurabili": 0, "stimate": 0, "lavoro": 0, "riletti": 0, "ragionamento": 0,
-         "ingresso": 0, "risposte": 0, "scritti": 0, "stima_lavoro": 0, "contesto": None, "modelli": {}, "piani": 0, "skills_usate": {}, "fonti": {}, "giorni": {}, "top": [], "ultimo": ""}
+         "ingresso": 0, "risposte": 0, "scritti": 0, "stima_lavoro": 0, "contesto": None, "modelli": {}, "piani": 0, "skills_usate": {}, "pl_chiamate": 0, "pl_token": 0, "fonti": {}, "giorni": {}, "top": [], "ultimo": ""}
     sess = set()
     for r in rich:
         g = str(r.get("inizio") or "")[:10]
@@ -87,6 +87,7 @@ def _progetto(rad, da):
         for nm, (a1, a2, a3) in (mm.items() if mm else [("?", (lav, ril, int(r.get("token_out") or 0)))]):
             m0 = p["modelli"].setdefault(nome_modello(nm), {"modello": nome_modello(nm), "richieste": 0, "lavoro": 0, "riletti": 0, "risposte": 0}); m0["richieste"] += 1; m0["lavoro"] += a1; m0["riletti"] += a2; m0["risposte"] += a3
         if r.get("piano_scritto"): p["piani"] += 1
+        p["pl_chiamate"] += int(r.get("plancia_chiamate") or 0); p["pl_token"] += int(r.get("plancia_token") or 0)
         for sk in r.get("skills") or []: p["skills_usate"][sk] = p["skills_usate"].get(sk, 0) + 1
         sess.add(r.get("sessione") or g)
         ff = p["fonti"].setdefault(f, {"richieste": 0, "misurate": 0, "lavoro": 0, "riletti": 0, "stimate": 0}); ff["richieste"] += 1; ff["misurate"] += 1 if mis and not stim else 0; ff["stimate"] += 1 if stim else 0; ff["lavoro"] += lav; ff["riletti"] += ril
@@ -96,7 +97,7 @@ def _progetto(rad, da):
     p["top"] = sorted(p["top"], key=lambda x: -x["lavoro"])[:TOP]
     p["giorni"] = sorted(p["giorni"].values(), key=lambda x: x["giorno"])
     p["plancia"] = peso_plancia(rad, len(sess) if p["richieste"] else 0, p["richieste"])
-    p["plancia"]["piani"] = p["piani"]
+    p["plancia"]["piani"] = p["piani"]; p["plancia"]["pl_chiamate"] = p["pl_chiamate"]; p["plancia"]["pl_token"] = p["pl_token"]; p["plancia"]["iniettato"] += p["pl_token"]
     return p
 
 
