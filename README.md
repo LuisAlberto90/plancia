@@ -56,6 +56,7 @@ Nel pannello:
 - **Progetti**: una scheda per progetto, scritta in chiaro: cosa sta facendo l'agente adesso, **l'ultima cosa che hai chiesto** (anche se è di settimane fa), se è finita, quanti file ha toccato e il **piano** ("l'agente sta scrivendo il piano…" → "Piano pronto → Vedi il piano"). Le conversazioni più vecchie sono raccolte sotto *Altre conversazioni*. Il pulsante 🔔 attiva le notifiche.
 - **Piano**: il grafo dei passi dell'ultima richiesta, con voto di qualità (0-10). Clic su un passo = cosa ha fatto (file, comandi, errori).
 - **Richieste**, **Riprendere**: cosa è successo e da dove ripartire.
+- **Tema scuro o chiaro**: bottone in alto a destra; la scelta resta salvata nel browser (la prima volta segue il sistema).
 - **Cosa provare insieme**: per ogni richiesta che ha modificato codice, i blocchi toccati e chi li usa (letti dagli import, senza AI): se un blocco molto usato cambia, conviene provare anche chi lo usa. Compare nelle richieste e nel prompt pronto del box «Oggi».
 - **Salute**: cosa non va e come sistemarlo, e il **livello del progetto** (da 0 a 4) con il prossimo passo.
 - **Avvisi nella Home**: "modificato ma non provato" (nessun test dopo le modifiche), chat troppo lunga, due chat sullo stesso file, riepilogo di oggi su tutti i progetti, bottone *Apri in VS Code*. Tutti calcolati dai fatti registrati: zero token.

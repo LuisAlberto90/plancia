@@ -35,14 +35,49 @@ svg text{fill:var(--fg);font-size:12px}.warn{border-color:var(--wait)}.det{margi
 .sep{width:1px;background:var(--line);margin:0 6px}.psel{display:flex;align-items:center;gap:6px;margin-right:6px}.psel select,.rqsel{background:var(--card);color:var(--fg);border:1px solid var(--acc);border-radius:8px;padding:7px 10px;font:inherit;font-weight:600;max-width:340px}.rqsel{max-width:100%;flex:1;min-width:280px;font-weight:500}.stab{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}.stab button{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:99px;padding:6px 14px;font:inherit;cursor:pointer}.stab button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
 .grp{display:flex;align-items:center;gap:8px;margin:22px 0 0;font-size:1.15em}.grp .dot{width:12px;height:12px;border-radius:50%}.grp .cnt{background:var(--line);border-radius:99px;padding:1px 10px;font-size:.85em}.pc.mini .rq:not(.pri),.pc.mini details,.pc.mini>.ses{display:none}.pc.mini{opacity:.92}.pc{box-shadow:0 1px 2px #0002;transition:box-shadow .15s,transform .15s}.pc:hover{box-shadow:0 6px 18px #0003;transform:translateY(-1px)}h1{display:flex;align-items:center;gap:8px}h1:before{content:'';width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--acc),var(--ver))}
 .az .tx{min-width:0;overflow-wrap:anywhere;word-break:break-word}.az code,.now code,.okr code,.rq,.dom,.bh,pre{overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap}.lato .card,.testa{overflow-x:hidden}.riep{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}.chipp{border:1.5px solid;border-radius:99px;padding:4px 12px;font-size:14px;background:var(--card)}button.lnk{background:none;border:1px solid var(--line);color:var(--mut);border-radius:6px;padding:4px 10px;font:inherit;font-size:13px;cursor:pointer}button.lnk:hover{color:var(--acc);border-color:var(--acc)}.agg{float:right;text-align:right;max-width:55%}#agg{font-size:13px;margin-top:4px}
-</style></head><body><main>
-<div class=agg><span class=sub>versione __PLANCIA_V__</span> <button class=lnk onclick="aggiorna(this)">⟳ Aggiorna la Plancia</button><div id=agg></div></div><h1 id="t">Plancia</h1><div class="sub" id="s"></div>
+
+/* ---- tema vetro (scuro / chiaro): solo aspetto, nessuna funzione ---- */
+html[data-tema=scuro]{color-scheme:dark;--bg:#090b1a;--fg:#eceefb;--mut:#a3a9c9;--card:rgba(27,31,60,.58);--solid:#171a33;--soft:rgba(255,255,255,.055);--line:rgba(255,255,255,.11);--hi:rgba(255,255,255,.07);--ok:#5ee0a4;--run:#7c9cff;--bad:#ff7a7a;--wait:#ffc266;--todo:#6a7192;--ver:#b08bff;--acc:#93a2ff;--onb:#0b0d1c;--omb:0 18px 44px -22px rgba(0,0,0,.75);--b1:rgba(91,107,255,.42);--b2:rgba(176,75,255,.32);--b3:rgba(18,194,168,.22)}
+html[data-tema=chiaro]{color-scheme:light;--bg:#eceffb;--fg:#1b1f3b;--mut:#5d6388;--card:rgba(255,255,255,.68);--solid:#fff;--soft:rgba(60,70,150,.06);--line:rgba(60,70,150,.17);--hi:rgba(255,255,255,.95);--ok:#0e8f62;--run:#3b5bdb;--bad:#d43c4c;--wait:#b86e00;--todo:#8d93b0;--ver:#7a4fd6;--acc:#4558e6;--onb:#fff;--omb:0 16px 36px -22px rgba(60,70,150,.5);--b1:rgba(120,145,255,.42);--b2:rgba(214,160,255,.4);--b3:rgba(130,235,205,.4)}
+html{--accf:#5b6bff;--accf2:#9a5cff;--vetro:blur(18px) saturate(1.5)}
+body{background:var(--bg);-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(48vw 48vw at 4% -6%,var(--b1),transparent 62%),radial-gradient(44vw 44vw at 100% 12%,var(--b2),transparent 62%),radial-gradient(52vw 52vw at 42% 112%,var(--b3),transparent 62%)}
+h1{letter-spacing:-.01em}h1:before{background:linear-gradient(135deg,var(--accf),var(--accf2));box-shadow:0 6px 18px -6px var(--accf)}
+.card,.pc,.bar,.chipp{-webkit-backdrop-filter:var(--vetro);backdrop-filter:var(--vetro)}
+.card,.pc{border-radius:16px;box-shadow:var(--omb),inset 0 1px 0 var(--hi)}.card{padding:16px}.pc{padding:18px}
+.card,.pc,button,select,.lnkb,.chipp,summary,details.ctl,.pbox{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,background-color .16s ease,color .16s ease}
+.pc:hover{transform:translateY(-2px);box-shadow:0 22px 46px -22px rgba(0,0,0,.55),inset 0 1px 0 var(--hi);border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}.pc[class*=" s-"]:hover{border-left-color:var(--c)}
+button,select,.lnkb,summary,[onclick]{cursor:pointer}
+:where(button){background:var(--soft);color:var(--fg);border:1px solid var(--line);padding:5px 12px;font:inherit;font-size:13.5px}.pc .lnkb{font-size:13px}
+button,select,.lnkb{border-radius:10px!important}.stab button,.chipp{border-radius:99px!important}
+nav button,.tb,.gtool button,.tg button,.pc button,.testa button,button.lnk,select,.lnkb{background:var(--soft)}
+button:not(:disabled):hover,select:hover,.lnkb:hover{transform:translateY(-1px);border-color:var(--acc);color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);box-shadow:0 8px 18px -10px var(--acc)}
+button:not(:disabled):active,.lnkb:active{transform:translateY(0);box-shadow:none}
+button:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+nav{gap:8px}nav button{padding:8px 16px;font-weight:550}
+nav button.on,.stab button.on,button.pri{background:linear-gradient(135deg,var(--accf),var(--accf2));color:#fff;border-color:transparent;box-shadow:0 8px 20px -10px var(--accf)}
+nav button.on:hover,.stab button.on:hover,button.pri:not(:disabled):hover{color:#fff;border-color:transparent;background:linear-gradient(135deg,var(--accf),var(--accf2));filter:brightness(1.1);box-shadow:0 12px 24px -10px var(--accf)}
+.togli:hover{background:var(--bad)!important;color:#fff!important;border-color:var(--bad)!important;box-shadow:0 8px 18px -10px var(--bad)!important}
+summary:hover{color:var(--acc)}details.ctl:hover,.pbox:hover{border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
+.rq[onclick]:hover,tr[onclick]:hover,.az[onclick]:hover{background:var(--soft)}
+.b{color:var(--onb)}.chips .cur{color:var(--onb)}
+pre,.gw{background:var(--soft)}option{background:var(--solid);color:var(--fg)}
+svg rect[fill="var(--card)"]{fill:var(--solid)}
+.bar{background:var(--card);box-shadow:0 -10px 30px -20px rgba(0,0,0,.5)}
+table tr:last-child td{border-bottom:0}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){html[data-tema]{--card:var(--solid)}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}.pc:hover,button:hover,select:hover,.lnkb:hover{transform:none!important}}
+</style><script>(function(){var t=null;try{t=localStorage.getItem('plancia_tema')}catch(e){}if(t!='chiaro'&&t!='scuro')t=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'chiaro':'scuro';document.documentElement.dataset.tema=t})()</script></head><body><main>
+<div class=agg><span class=sub>versione __PLANCIA_V__</span> <button class=lnk id=btema onclick="tema()" title="Cambia tra tema scuro e chiaro: la scelta resta salvata su questo browser"></button> <button class=lnk onclick="aggiorna(this)">⟳ Aggiorna la Plancia</button><div id=agg></div></div><h1 id="t">Plancia</h1><div class="sub" id="s"></div>
 <div id="ok"></div><nav id="nav"></nav><div id="v"></div><div id="bar" class="bar"></div>
 <script>
 const COL={DA_FARE:'--todo',IN_CORSO:'--run',FATTO:'--ok',VERIFICATO:'--ver',BLOCCATO:'--bad',NON_NECESSARIO:'--mut'},
  NOME={DA_FARE:'da fare',IN_CORSO:'in corso',FATTO:'fatto',VERIFICATO:'verificato',BLOCCATO:'bloccato',NON_NECESSARIO:'non necessario'},
  TABS=[['progetti','Tutti i progetti'],['piano','Lavoro'],['strumenti','Skill e agenti'],['salute','Salute'],['prove','Prove'],['task','Task']];
 const PROVE_ON=(()=>{try{if(new URLSearchParams(location.search).get('prove')=='1')localStorage.setItem('plancia_prove','1');return localStorage.getItem('plancia_prove')=='1'||location.hash=='#prove'}catch(e){return location.hash=='#prove'}})();
+function temaEt(){const b=document.getElementById('btema');if(b)b.textContent=document.documentElement.dataset.tema=='chiaro'?'🌙 Tema scuro':'☀ Tema chiaro'}
+function tema(){const t=document.documentElement.dataset.tema=='chiaro'?'scuro':'chiaro';document.documentElement.dataset.tema=t;try{localStorage.setItem('plancia_tema',t)}catch(e){}temaEt();if(typeof draw=='function')draw()}
+temaEt();
 const E=s=>String(s??'').replace(/[&<>"']/g,x=>({"'":'&#39;','&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x])),
  css=k=>getComputedStyle(document.documentElement).getPropertyValue(k),
  f=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'k':n,
@@ -252,7 +287,7 @@ let NOT={};function notifOn(){try{return localStorage.getItem('plancia_notifiche
 function attivaNotifiche(){if(!window.Notification){alert('Questo browser non supporta le notifiche');return}Notification.requestPermission().then(p=>{try{localStorage.setItem('plancia_notifiche',p=='granted'?'1':'0')}catch(e){}draw()})}
 function notifica(d){if(!d||!d.progetti)return;const nuovo={};d.progetti.forEach(p=>(p.sessioni||[]).forEach(s=>{const k=p.radice+'|'+s.id;nuovo[k]=s.stato;const prima=NOT[k];if(prima&&prima!==s.stato&&notifOn()&&['aspetta','permesso','errore','loop','fermo'].includes(s.stato)){try{new Notification('Plancia · '+p.nome,{body:{aspetta:'ha finito: tocca a te',permesso:'la chat aspetta un tuo OK (Allow)',errore:'sbaglia in ripetizione',loop:'ripete la stessa azione',fermo:'nessun segno di vita'}[s.stato]+' — '+((s.stato=='permesso'&&s.attesa)||s.domanda||'').slice(0,80)})}catch(e){}}
  if(p.piano&&p.piano.stato=='pronto'){const kp=p.radice+'|piano';if(NOT[kp]&&NOT[kp]!==p.piano.titolo&&notifOn()){try{new Notification('Plancia · '+p.nome,{body:'piano pronto: '+p.piano.titolo})}catch(e){}}nuovo[kp]=p.piano.titolo}}));NOT=nuovo}
-const HV='__PLANCIA_V__',PAGINA_V='0.31.1';let PV=null;function loadPV(){if(loadPV.in)return;loadPV.in=1;fetch('api/prove'+qs({p:proj})).then(r=>r.text()).then(x=>{try{PV=JSON.parse(x)}catch(e){PV={errore_pannello:'Risposta non valida da /api/prove:\n'+x.slice(0,2000)}}}).catch(e=>{PV={errore_pannello:'Il pannello non risponde a /api/prove: '+e}}).finally(()=>{loadPV.in=0;if(tab=='prove')draw()})}
+const HV='__PLANCIA_V__',PAGINA_V='0.32.0';let PV=null;function loadPV(){if(loadPV.in)return;loadPV.in=1;fetch('api/prove'+qs({p:proj})).then(r=>r.text()).then(x=>{try{PV=JSON.parse(x)}catch(e){PV={errore_pannello:'Risposta non valida da /api/prove:\n'+x.slice(0,2000)}}}).catch(e=>{PV={errore_pannello:'Il pannello non risponde a /api/prove: '+e}}).finally(()=>{loadPV.in=0;if(tab=='prove')draw()})}
 function copia(n){const t=PV.prove.find(x=>x.n==n).prompt;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{document.getElementById('cp'+n).textContent='copiato ✓'}).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();document.getElementById('cp'+n).textContent='copiato ✓'})}
 function verificaP(n){document.getElementById('vr'+n).textContent='verifico…';fetch('api/prova'+qs({p:proj,n:String(n)})).then(r=>r.text()).then(x=>{try{const d=JSON.parse(x);if(d.errore_pannello)PV={errore_pannello:d.errore_pannello}}catch(e){PV={errore_pannello:'Risposta non valida da /api/prova:\n'+x.slice(0,2000)}}}).catch(e=>{PV={errore_pannello:'Il pannello non risponde: '+e}}).finally(()=>{if(PV&&PV.errore_pannello)draw();else{PV=null;loadPV()}})}
 function vProve(){if(!proj)return'<div class="card"><h2>Prima scegli il progetto</h2><p class=sub>Vai su <b>Progetti</b> e clicca il progetto su cui fai le prove, poi torna qui. Le prove si verificano su quel progetto.</p></div>';if(!PV){loadPV();return'<div class="card"><p class=sub>Carico le prove…</p></div>'}if(PV.errore_pannello)return errBox(PV.errore_pannello);
