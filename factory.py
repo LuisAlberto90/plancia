@@ -5,6 +5,7 @@
   plancia contesto [--scrivi]   mappa del progetto senza LLM (.factory/CONTESTO.md): l'agente la legge invece di esplorare
   plancia metodo [--globale] [--scrivi]   installa la skill plancia-metodo (come affrontare ogni richiesta senza fronzoli ne loop)
   plancia prove [N|verifica N|rapporto]   batteria di prove su un progetto vero, senza toccare la logica
+  plancia chat-campi       mostra DOVE VS Code salva la chat e quali campi di token/contesto contiene (solo nomi e numeri, nessun testo)
   plancia diagnosi         zip da mandare a chi ti supporta (struttura, configurazioni, eventi, errori; nessun codice sorgente)
   plancia strumenti        skill, server MCP, hook, istruzioni e plugin del progetto, con proposte
   plancia skill-progetto   crea la skill del progetto con i comandi di build/test verificati (--scrivi)
@@ -252,6 +253,8 @@ def main(a):
     if c == "archivia":
         from fcore import archivio
         return archivio.archivia("--prova" not in r)
+    if c == "chat-campi":
+        from fcore import vscodechat; print(vscodechat.struttura()); return 0
     if c == "diagnosi":
         from fcore import diagnosi; return diagnosi.main(r)
     if c == "metodo": return metodo.main(r)

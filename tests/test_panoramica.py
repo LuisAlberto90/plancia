@@ -401,6 +401,13 @@ finally:
     os.environ["HOME"] = os.environ["USERPROFILE"] = _oh2 or ""
 v("chat VS Code: trova le sessioni del progetto (json e jsonl a mutazioni)", len(_vr) == 3 and not _vn, [(r["token_in"], r["token_out"], r["stimato"]) for r in _vr])
 v("chat VS Code: token reali se ci sono, altrimenti stima dal testo senza contare gli strumenti", any(r["token_in"] == 5000 and r["token_out"] == 700 and not r["stimato"] for r in _vr) and any(r["token_in"] == 100 and r["token_out"] == 200 and r["stimato"] for r in _vr), _vr)
+os.environ["APPDATA"] = str(_u9); os.environ["HOME"] = os.environ["USERPROFILE"] = str(_u9 / "h")
+try: _st9 = _VC.struttura()
+finally:
+    if _oa is None: os.environ.pop("APPDATA", None)
+    else: os.environ["APPDATA"] = _oa
+    os.environ["HOME"] = os.environ["USERPROFILE"] = _oh2 or ""
+v("chat-campi: mostra i campi numerici di token e NON il testo delle conversazioni", "promptTokens" in _st9 and "outputTokens" in _st9 and "xxxx" not in _st9 and "ciao" not in _st9, _st9[:300])
 # --- consumi: ripartizione input/risposte e peso della Plancia
 _pp = _CO.peso_plancia(str(_jt), 2, 10)
 v("consumi: peso della Plancia = solo testo iniettato (regola+skill per chat, promemoria per messaggio)", _pp["iniettato"] == 2 * (_pp["regola"] + _pp["skill"]) + 8 * _pp["promemoria"] and 100 < _pp["regola"] < 600 and _pp["schema_pieno"] > _pp["schema"], _pp)

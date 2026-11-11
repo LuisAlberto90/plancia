@@ -2,7 +2,7 @@
 VS Code le tiene in <User>/workspaceStorage/<hash>/chatSessions/*.json|jsonl; workspace.json dice a quale cartella appartiene l'hash.
 Se la sessione contiene i token reali (promptTokens/outputTokens) si usano; altrimenti si STIMA dal testo scambiato (4 caratteri = 1 token),
 e il numero e marcato come stima: e un minimo, perche il contesto che l'agente rilegge (file, istruzioni, strumenti) non e nel testo salvato."""
-import json, os, time
+import json, os, re, time
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -110,3 +110,54 @@ def richieste(rad, giorni_max=None):
     out.sort(key=lambda r: r["inizio"], reverse=True)
     _C[chiave] = (ora, out)
     return out
+
+
+CAMPO = re.compile(r"(?i)token|context|window|limit|usage|cache|prompt|output|input|budget|total")
+
+
+def _numeri(x, perc, out, prof=0):
+    """Raccoglie i percorsi dei campi NUMERICI il cui nome parla di token/contesto. Mai testo, mai valori stringa."""
+    if prof > 12: return
+    if isinstance(x, dict):
+        for k, v in x.items():
+            p = perc + "." + str(k)[:40]
+            if isinstance(v, bool): continue
+            if isinstance(v, (int, float)):
+                if CAMPO.search(str(k)): d = out.setdefault(p, [0, v, v]); d[0] += 1; d[1] = min(d[1], v); d[2] = max(d[2], v)
+            else: _numeri(v, p, out, prof + 1)
+    elif isinstance(x, list):
+        for v in x[:200]: _numeri(v, perc + "[]", out, prof + 1)
+
+
+def struttura(max_file=4):
+    """Diagnosi: dove VS Code salva i dati della chat e quali campi numerici (token, contesto) contengono. SOLO nomi di campi e numeri: nessun testo di conversazione."""
+    righe = []
+    for u in _utenti():
+        righe.append("VS Code: %s" % u.parent.name)
+        ws_tutti = sorted((u / "workspaceStorage").glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
+        righe.append("  cartelle di lavoro: %d" % len(ws_tutti))
+        visti = 0
+        for ws in ws_tutti:
+            cart = {"chatSessions": ws / "chatSessions", "debug-logs": ws / "GitHub.copilot-chat" / "debug-logs", "transcripts": ws / "GitHub.copilot-chat" / "transcripts"}
+            if not any(p.is_dir() for p in cart.values()): continue
+            visti += 1
+            if visti > max_file: break
+            righe.append("  [%s]" % ws.name[:8])
+            for nome, d in cart.items():
+                if not d.is_dir(): continue
+                fs = sorted((f for f in d.rglob("*") if f.is_file()), key=lambda p: p.stat().st_mtime, reverse=True)
+                righe.append("    %s: %d file, es. %s" % (nome, len(fs), ", ".join("%s (%d KB)" % (f.suffix or "?", f.stat().st_size // 1024) for f in fs[:3])))
+                for f in fs[:2]:
+                    if f.suffix not in (".json", ".jsonl"): continue
+                    num = {}
+                    try:
+                        t = f.read_text(encoding="utf-8", errors="replace")
+                        if f.suffix == ".json": _numeri(json.loads(t), "", num)
+                        else:
+                            for riga in t.splitlines()[:3000]:
+                                try: _numeri(json.loads(riga), "", num)
+                                except Exception: continue
+                    except Exception: pass
+                    for p, (n, lo, hi) in sorted(num.items())[:40]: righe.append("      %s  x%d  min %s  max %s" % (p, n, lo, hi))
+                    if not num: righe.append("      (%s: nessun campo numerico di token/contesto)" % f.suffix)
+    return "\n".join(righe) or "Nessuna installazione di VS Code trovata."
