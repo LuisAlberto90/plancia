@@ -3,6 +3,8 @@ Uso:  python tests/test_pannello_browser.py [cartella-progetto]   (senza argomen
 Serve playwright (pip install playwright; playwright install chromium). Se manca, il test si salta."""
 import json, os, shutil, socket, subprocess, sys, tempfile, time
 from pathlib import Path
+import calendar
+Date_U = lambda y, m, d: calendar.timegm((y, m, d, 0, 0, 0))
 Q = Path(__file__).resolve().parent.parent
 try: from playwright.sync_api import sync_playwright
 except ImportError: print("playwright non installato: test del browser saltato"); sys.exit(0)
@@ -83,9 +85,11 @@ try:
         _mock = {"giorni": 90, "troncate": False, "calcolato": "10:00:00", "progetti": [{"nome": "Alfa", "radice": "/a", "plancia": {"regola": 229, "promemoria": 46, "skill": 81, "schema": 390, "schema_pieno": 900, "chiamate": 0, "iniettato": 1, "voci": []}, "contesto": None}, {"nome": "Beta", "radice": "/b", "plancia": None, "contesto": None}],
                  "righe": [_R(0, "claude", "claude-sonnet-4-5", 9000), _R(0, "copilot", "gpt-5", 3000), _R(0, "vscode", "non dichiarato", 2000, c=100000, cm=120000), _R(1, "claude", "claude-sonnet-4-5", 1000), _R(0, "claude", "gpt-5", 900000)]}
         import time as _tm
-        _N = int(_tm.time()); _PLM = {"adesso": _N, "claude": {"auto": True, "aggiornato": _N - 60, "cinque_ore": {"pct": 6.0, "reset": _N + 3 * 3600}, "sette_giorni": {"pct": 19.0, "reset": _N + 4 * 86400}, "installata": True, "comando": "x"}, "copilot": {"unita": "richieste", "tetto": 300, "reset_giorno": 1, "usati": 0, "usati_t": 0, "moltiplicatori": {"gpt-5": 1}}}
+        _N = int(_tm.time()); _PLM = {"adesso": _N, "claude": {"auto": True, "aggiornato": _N - 60, "cinque_ore": {"pct": 6.0, "reset": _N + 3 * 3600}, "sette_giorni": {"pct": 19.0, "reset": _N + 4 * 86400}, "installata": True, "comando": "x"}, "copilot": {"piano": "business", "tetto": 1900, "tetto_scritto": 0, "usati": 0, "usati_t": 0, "ciclo": [0, 1], "piani": [{"id": "", "nome": "Non misurare", "crediti": None}, {"id": "business", "nome": "Business", "crediti": 1900}, {"id": "custom", "nome": "Personalizzato", "crediti": None}], "prezzi": {"fonte": "https://docs.github.com/x", "aggiornato_al": "2026-11-12", "vecchia": False}, "pagina_uso": "https://github.com/settings/billing"}}
         pg.route("**/api/miopiano*", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(_PLM)) if r.request.method == "GET" else r.continue_())
         _mock["righe"] += [_R(0, "claude", "claude-sonnet-4-5", 5000 + k * 100) for k in range(12)]
+        for _r in _mock["righe"]:
+            if _r["f"] in ("copilot", "vscode"): _r.update({"cr": round(_r["L"] / 10000, 3), "cd": [[_r["L"] // 2, _r["L"], 0, _r["L"] // 10], [_r["L"] / 20000, _r["L"] / 40000, 0, _r["L"] / 20000]], "cx": 1 if _r["f"] == "vscode" else 0, "cn": [], "cl": 0})
         pg.route("**/api/consumi-righe*", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(_mock)))
         pg.evaluate("tab='consumi';draw()"); pg.wait_for_selector(".cxt", timeout=8000)
         T = lambda: pg.evaluate("document.querySelector('#v').textContent")
@@ -97,8 +101,12 @@ try:
         pg.evaluate("cxTab('t3')"); check("Il contesto che si gonfia" in T() and "Il modello conta" in T() and "Richieste da rifare" in T() and "Il piano scritto aiuta?" in T(), "Consumi Perché: quattro meccanismi")
         pg.evaluate("cxTab('t4')"); check("Le tue abitudini" in T() and "Intervalli prudenti" in T(), "Consumi Cosa cambio: lezioni e abitudini")
         pg.evaluate("cxTab('t5')"); check("Registro delle richieste" in T() and "Riepilogo da condividere" in T(), "Consumi Registro: tabella e riepilogo")
-        pg.evaluate("cxTab('p')"); check("GitHub Copilot" in T() and pg.locator("#cpT").count() == 1, "Consumi Il mio piano: modulo Copilot")
-        pg.evaluate("document.getElementById('cpU').value='richieste';document.getElementById('cpT').value='300';document.getElementById('cpR').value='1'"); pg.evaluate("cxSalva()"); pg.wait_for_timeout(600); check("Salvato" in pg.evaluate("document.getElementById('cpMsg').textContent"), "Consumi Il mio piano: il salvataggio funziona")
+        pg.evaluate("cxTab('p')"); check("GitHub Copilot" in T() and pg.locator("#cpP").count() == 1 and pg.locator("#cpR").count() == 0 and "Richieste premium" not in T() and "00:00 UTC" in T() and "settings/billing" in pg.evaluate("document.querySelector('#v').innerHTML") and "2026-11-12" in T(), "Consumi Il mio piano: piano a tendina, reset UTC fisso, link a GitHub, data dei prezzi")
+        pg.evaluate("cxTab('t5')"); check("crediti" in T() and pg.locator("b[title*='token ×']").count() >= 1, "Consumi Registro: Copilot mostra i crediti, il tooltip dice token × prezzo")
+        pg.evaluate("cxTab('t1')"); check("crediti AI" in T() and "Copilot, mese" in T(), "Consumi Come sto: Copilot in crediti AI")
+        _cu = pg.evaluate("[cxCiclo(Date.UTC(2026,10,30,23,59,59)/1000),cxCiclo(Date.UTC(2026,11,1,0,0,0)/1000)]"); check(_cu == [[Date_U(2026, 11, 1), Date_U(2026, 12, 1)], [Date_U(2026, 12, 1), Date_U(2027, 1, 1)]], "Consumi: il mese di Copilot cambia a mezzanotte UTC (%s)" % _cu)
+        pg.evaluate("cxTab('p')")
+        pg.evaluate("document.getElementById('cpP').value='custom';cxPiano('custom');document.getElementById('cpT').value='5000';document.getElementById('cpUs').value='267.9'"); pg.evaluate("cxSalva()"); pg.wait_for_timeout(600); check("Salvato" in pg.evaluate("document.getElementById('cpMsg').textContent"), "Consumi Il mio piano: il salvataggio funziona")
         pg.evaluate("cxTab('t1');cxSet('prog','1')"); check(pg.locator(".cxk b.v").nth(1).inner_text() in ("0", "1") or True, "Consumi: il filtro Progetto non rompe la pagina")
         _fl = pg.evaluate("""(()=>{const b={p:0,f:'claude',m:'a',s:'0|x',L:1000,R:0,O:100,I:900,W:0,c:0,cm:0,st:0,pi:0},r=[{...b,t:'2026-11-01T10:00',d:'aggiungi il filtro per regione'},{...b,t:'2026-11-01T10:05',d:'ho sbagliato fermati'},{...b,t:'2026-11-01T10:10',d:'rifai il grafico dei consumi per mese'},{...b,t:'2026-11-01T10:12',d:'rifai il grafico dei consumi per mese'},{...b,t:'2026-11-01T10:20',d:'x',c:110000,cm:128000}];cxAnalizza(r);return r.map(x=>x._fl)})()""")
         check(_fl == ["int", None, None, "rip", "ctx"], "Consumi regole: interrotta (anche «ho sbagliato fermati») / ripetuta / contesto saturo (%s)" % _fl)

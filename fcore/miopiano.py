@@ -1,11 +1,10 @@
 """Il mio piano: i limiti dei tuoi abbonamenti, per misurare i consumi in "% del limite" invece che in token.
 - Claude: letti in automatico dalla statusline di Claude Code (rate_limits: sessione 5 ore e settimana), salvati in ~/.plancia/limiti.json. Zero rete, zero credenziali.
-- Copilot: il tetto e il giorno di reset stanno sui server GitHub e non esistono in locale: si scrivono una volta (~/.plancia/miopiano.json).
+- Copilot: crediti AI (1 credito = 0,01 dollari). Il tetto dipende dal piano (o lo scrivi tu); il reset e fisso (1 del mese, 00:00 UTC). L'uso vero sta solo su github.com/settings/billing (~/.plancia/miopiano.json).
 Vuoto di default: finche non lo compili la pagina Consumi mostra solo token. Mai nessuna scrittura in settings.json senza `limiti-installa --scrivi`."""
-import json, os, re, sys, time
+import json, os, sys, time
 from pathlib import Path
 
-UNITA = ("richieste", "crediti")
 STATUSLINE = '''"""Plancia: salva i limiti di Claude Code (sessione e settimana) in ~/.plancia/limiti.json e stampa una riga corta. Mai bloccante."""
 import json, os, subprocess, sys, time
 from pathlib import Path
@@ -48,29 +47,34 @@ def _num(v, lo, hi):
     return x
 
 
+PIANI = [("", "Non misurare", None), ("free", "Free (scrivi tu il tetto)", None), ("student", "Student (scrivi tu il tetto)", None), ("pro", "Pro", 1500), ("pro_plus", "Pro+", 7000), ("max", "Max", 20000),
+         ("business", "Business", 1900), ("enterprise", "Enterprise", 3900), ("custom", "Personalizzato", None)]
+
+
 def impostazioni():
-    """Quello che hai scritto tu (Copilot) piu quello che Claude Code ha comunicato (limiti.json). Sempre completo, mai un errore."""
+    """Quello che hai scritto tu (Copilot) piu quello che Claude Code ha comunicato (limiti.json). Sempre completo, mai un errore.
+    Copilot: i crediti AI del mese si azzerano il 1 alle 00:00 UTC (GitHub Docs); il tetto dipende dal piano, oppure lo scrivi tu."""
+    try: from fcore import crediti as CRD
+    except ImportError: from . import crediti as CRD
     s = _leggi("miopiano.json", {}); c = s.get("copilot") if isinstance(s.get("copilot"), dict) else {}
-    lim = _leggi("limiti.json", {})
+    lim = _leggi("limiti.json", {}); ora = int(time.time())
     cl = {"auto": bool(lim.get("five_hour") or lim.get("seven_day")), "aggiornato": int(lim.get("t") or 0), "cinque_ore": lim.get("five_hour"), "sette_giorni": lim.get("seven_day"),
           "installata": statusline_installata(), "comando": comando_installa()}
-    mol = c.get("moltiplicatori") if isinstance(c.get("moltiplicatori"), dict) else {}
-    return {"adesso": int(time.time()), "claude": cl,
-            "copilot": {"unita": c.get("unita") if c.get("unita") in UNITA else "", "tetto": c.get("tetto") or 0, "reset_giorno": c.get("reset_giorno") or 0,
-                        "usati": c.get("usati") or 0, "usati_t": c.get("usati_t") or 0, "moltiplicatori": {str(k)[:60]: v for k, v in mol.items() if isinstance(v, (int, float))}}}
+    piano = c.get("piano") if c.get("piano") in [p[0] for p in PIANI] else ""; custom = c.get("tetto") or 0
+    fisso = next((p[2] for p in PIANI if p[0] == piano), None); ini, fin = CRD.ciclo_utc(ora)
+    return {"adesso": ora, "claude": cl,
+            "copilot": {"piano": piano, "tetto": fisso or custom, "tetto_scritto": custom, "usati": c.get("usati") or 0, "usati_t": c.get("usati_t") or 0, "ciclo": [ini, fin],
+                        "piani": [{"id": p[0], "nome": p[1], "crediti": p[2]} for p in PIANI], "prezzi": CRD.meta(), "pagina_uso": "https://github.com/settings/billing"}}
 
 
 def salva(d):
     """Scrive solo i campi di Copilot, validati. ValueError se qualcosa non torna."""
     if not isinstance(d, dict): raise ValueError("richiesta non valida")
-    c = d.get("copilot") if isinstance(d.get("copilot"), dict) else {}; out = {}
-    if c.get("unita") not in UNITA + ("",): raise ValueError("unita non valida")
-    out["unita"] = c.get("unita") or ""
-    out["tetto"] = _num(c.get("tetto") or 0, 0, 10_000_000); out["reset_giorno"] = int(_num(c.get("reset_giorno") or 0, 0, 31))
-    out["usati"] = _num(c.get("usati") or 0, 0, 10_000_000); out["usati_t"] = int(time.time()) if out["usati"] else 0
-    mol = c.get("moltiplicatori") if isinstance(c.get("moltiplicatori"), dict) else {}
-    if len(mol) > 60: raise ValueError("troppi modelli")
-    out["moltiplicatori"] = {re.sub(r"[^\w.\- /:]", "", str(k))[:60]: _num(v, 0, 1000) for k, v in mol.items() if str(k).strip()}
+    c = d.get("copilot") if isinstance(d.get("copilot"), dict) else {}
+    if c.get("piano", "") not in [p[0] for p in PIANI]: raise ValueError("piano non valido")
+    out = {"piano": c.get("piano", ""), "tetto": _num(c.get("tetto") or 0, 0, 10_000_000), "usati": _num(c.get("usati") or 0, 0, 10_000_000)}
+    ora = int(time.time()); t = c.get("usati_t")
+    out["usati_t"] = (int(t) if isinstance(t, (int, float)) and ora - 400 * 86400 <= t <= ora + 3600 else ora) if out["usati"] else 0
     casa().mkdir(parents=True, exist_ok=True); p = casa() / "miopiano.json"; tmp = casa() / "miopiano.json.tmp"
     tmp.write_text(json.dumps({"copilot": out}, ensure_ascii=False, indent=1), encoding="utf-8"); os.replace(tmp, p)
     return {"ok": True}

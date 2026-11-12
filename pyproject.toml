@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "plancia"
-version = "0.40.2"
+version = "0.41.0"
 description = "Piano, task, guardie e handoff visibili per Claude Code, Copilot e ogni host MCP"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -22,7 +22,7 @@ py-modules = ["factory"]
 packages = ["fcore"]
 
 [tool.setuptools.package-data]
-fcore = ["pannello.html", "consumi_ui.js"]
+fcore = ["pannello.html", "consumi_ui.js", "prezzi_copilot.json"]
 
 [tool.ruff]
 line-length = 220

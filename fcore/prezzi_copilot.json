@@ -1,0 +1,343 @@
+{
+ "fonte": "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing",
+ "fonte_piani": "https://docs.github.com/en/copilot/concepts/billing-and-usage/individuals/billing",
+ "aggiornato_al": "2026-11-12",
+ "nota": "Prezzi in dollari per 1M di token. 1 credito AI = 0,01 dollari. La pagina GitHub non mostra una data di aggiornamento: aggiornato_al e il giorno in cui Plancia l'ha verificata. Soglia long context applicata per chiamata sul totale input + cache letta + cache scritta (assunzione di Plancia: la pagina dice solo 'input tokens'). Completamenti di codice e next edit suggestions non sono fatturati. Gemini 3.8 Flash e Gemini 4 Argon sono prezzi promozionali fino alla data indicata in promo_fino: dopo, controllare la pagina.",
+ "dollari_per_credito": 0.01,
+ "modelli": [
+  {
+   "nome": "GPT-5.3-Codex",
+   "fornitore": "OpenAI",
+   "categoria": "Powerful",
+   "input": 1.75,
+   "cached": 0.175,
+   "cache_write": null,
+   "output": 14.0
+  },
+  {
+   "nome": "GPT-5.4 nano",
+   "fornitore": "OpenAI",
+   "categoria": "Lightweight",
+   "input": 0.2,
+   "cached": 0.02,
+   "cache_write": null,
+   "output": 1.25
+  },
+  {
+   "nome": "GPT-5.6 Luna",
+   "fornitore": "OpenAI",
+   "categoria": "Lightweight",
+   "input": 0.2,
+   "cached": 0.02,
+   "cache_write": 0.25,
+   "output": 1.2,
+   "soglia": 200000,
+   "long_context": {
+    "input": 0.4,
+    "cached": 0.04,
+    "cache_write": 0.5,
+    "output": 1.8
+   }
+  },
+  {
+   "nome": "GPT-5.6 Sol",
+   "fornitore": "OpenAI",
+   "categoria": "Powerful",
+   "input": 4.0,
+   "cached": 0.4,
+   "cache_write": 5.0,
+   "output": 20.0,
+   "soglia": 272000,
+   "long_context": {
+    "input": 8.0,
+    "cached": 0.8,
+    "cache_write": 10.0,
+    "output": 30.0
+   }
+  },
+  {
+   "nome": "GPT-5.6 Terra",
+   "fornitore": "OpenAI",
+   "categoria": "Versatile",
+   "input": 2.0,
+   "cached": 0.2,
+   "cache_write": 2.5,
+   "output": 12.0,
+   "soglia": 272000,
+   "long_context": {
+    "input": 4.0,
+    "cached": 0.4,
+    "cache_write": 5.0,
+    "output": 18.0
+   }
+  },
+  {
+   "nome": "GPT-6 Astra",
+   "fornitore": "OpenAI",
+   "categoria": "Powerful",
+   "input": 10.0,
+   "cached": 1.0,
+   "cache_write": 12.5,
+   "output": 50.0,
+   "soglia": 272000,
+   "long_context": {
+    "input": 20.0,
+    "cached": 2.0,
+    "cache_write": 25.0,
+    "output": 75.0
+   }
+  },
+  {
+   "nome": "GPT-6 Luna",
+   "fornitore": "OpenAI",
+   "categoria": "Lightweight",
+   "input": 0.1,
+   "cached": 0.01,
+   "cache_write": 0.125,
+   "output": 0.5,
+   "soglia": 272000,
+   "long_context": {
+    "input": 0.2,
+    "cached": 0.02,
+    "cache_write": 0.25,
+    "output": 0.75
+   }
+  },
+  {
+   "nome": "GPT-6 Sol",
+   "fornitore": "OpenAI",
+   "categoria": "Powerful",
+   "input": 2.0,
+   "cached": 0.2,
+   "cache_write": 2.5,
+   "output": 10.0,
+   "soglia": 272000,
+   "long_context": {
+    "input": 4.0,
+    "cached": 0.4,
+    "cache_write": 5.0,
+    "output": 15.0
+   }
+  },
+  {
+   "nome": "GPT-6.1 Sol",
+   "fornitore": "OpenAI",
+   "categoria": "Powerful",
+   "input": 2.0,
+   "cached": 0.1,
+   "cache_write": 2.5,
+   "output": 10.0,
+   "soglia": 272000,
+   "long_context": {
+    "input": 4.0,
+    "cached": 0.2,
+    "cache_write": 5.0,
+    "output": 15.0
+   }
+  },
+  {
+   "nome": "Claude Haiku 4.5",
+   "fornitore": "Anthropic",
+   "categoria": "Versatile",
+   "input": 1.0,
+   "cached": 0.1,
+   "cache_write": 1.25,
+   "output": 5.0
+  },
+  {
+   "nome": "Claude Haiku 5.5",
+   "fornitore": "Anthropic",
+   "categoria": "Lightweight",
+   "input": 0.1,
+   "cached": 0.01,
+   "cache_write": 0.125,
+   "output": 0.5,
+   "soglia": 100000,
+   "long_context": {
+    "input": 0.5,
+    "cached": 0.05,
+    "cache_write": 0.625,
+    "output": 2.5
+   }
+  },
+  {
+   "nome": "Claude Sonnet 4",
+   "fornitore": "Anthropic",
+   "categoria": "Versatile",
+   "input": 3.0,
+   "cached": 0.3,
+   "cache_write": 3.75,
+   "output": 15.0
+  },
+  {
+   "nome": "Claude Sonnet 4.6",
+   "fornitore": "Anthropic",
+   "categoria": "Versatile",
+   "input": 3.0,
+   "cached": 0.3,
+   "cache_write": 3.75,
+   "output": 15.0
+  },
+  {
+   "nome": "Claude Opus 4.8",
+   "fornitore": "Anthropic",
+   "categoria": "Powerful",
+   "input": 5.0,
+   "cached": 0.5,
+   "cache_write": 6.25,
+   "output": 25.0
+  },
+  {
+   "nome": "Claude Opus 5",
+   "fornitore": "Anthropic",
+   "categoria": "Powerful",
+   "input": 5.0,
+   "cached": 0.5,
+   "cache_write": 6.25,
+   "output": 25.0
+  },
+  {
+   "nome": "Claude Opus 5.5",
+   "fornitore": "Anthropic",
+   "categoria": "Powerful",
+   "input": 4.0,
+   "cached": 0.2,
+   "cache_write": 5.0,
+   "output": 20.0
+  },
+  {
+   "nome": "Claude Sonnet 5",
+   "fornitore": "Anthropic",
+   "categoria": "Versatile",
+   "input": 2.0,
+   "cached": 0.2,
+   "cache_write": 2.5,
+   "output": 10.0
+  },
+  {
+   "nome": "Claude Sonnet 5.5",
+   "fornitore": "Anthropic",
+   "categoria": "Versatile",
+   "input": 2.0,
+   "cached": 0.1,
+   "cache_write": 2.5,
+   "output": 10.0
+  },
+  {
+   "nome": "Claude Opus 4.8 (fast mode) (preview)",
+   "fornitore": "Anthropic",
+   "categoria": "Powerful",
+   "input": 10.0,
+   "cached": 1.0,
+   "cache_write": 12.5,
+   "output": 50.0,
+   "alias": [
+    "claude-opus-4.8-fast"
+   ]
+  },
+  {
+   "nome": "Claude Fable 5",
+   "fornitore": "Anthropic",
+   "categoria": "Powerful",
+   "input": 10.0,
+   "cached": 1.0,
+   "cache_write": 12.5,
+   "output": 50.0
+  },
+  {
+   "nome": "Claude Fable 5.1",
+   "fornitore": "Anthropic",
+   "categoria": "Powerful",
+   "input": 10.0,
+   "cached": 0.25,
+   "cache_write": 12.5,
+   "output": 50.0
+  },
+  {
+   "nome": "Gemini 3.8 Flash",
+   "fornitore": "Google",
+   "categoria": "Versatile",
+   "input": 0.75,
+   "cached": 0.075,
+   "cache_write": null,
+   "output": 3.75,
+   "promo_fino": "2026-12-31"
+  },
+  {
+   "nome": "Gemini 4 Argon",
+   "fornitore": "Google",
+   "categoria": "Powerful",
+   "input": 2.0,
+   "cached": 0.1,
+   "cache_write": null,
+   "output": 10.0,
+   "promo_fino": "2026-12-01"
+  },
+  {
+   "nome": "MAI-Code-1.1-Flash",
+   "fornitore": "Microsoft",
+   "categoria": "Lightweight",
+   "input": 0.2,
+   "cached": 0.02,
+   "cache_write": null,
+   "output": 1.2
+  },
+  {
+   "nome": "Grok 4.5",
+   "fornitore": "xAI",
+   "categoria": "Versatile",
+   "input": 2.0,
+   "cached": 0.5,
+   "cache_write": null,
+   "output": 6.0,
+   "soglia": 200000,
+   "long_context": {
+    "input": 4.0,
+    "cached": 1.0,
+    "cache_write": null,
+    "output": 12.0
+   }
+  },
+  {
+   "nome": "Grok 4.6",
+   "fornitore": "xAI",
+   "categoria": "Versatile",
+   "input": 2.0,
+   "cached": 0.5,
+   "cache_write": null,
+   "output": 6.0,
+   "soglia": 200000,
+   "long_context": {
+    "input": 4.0,
+    "cached": 1.0,
+    "cache_write": null,
+    "output": 12.0
+   }
+  },
+  {
+   "nome": "Grok 4.7",
+   "fornitore": "xAI",
+   "categoria": "Versatile",
+   "input": 2.0,
+   "cached": 0.5,
+   "cache_write": null,
+   "output": 6.0,
+   "soglia": 200000,
+   "long_context": {
+    "input": 4.0,
+    "cached": 1.0,
+    "cache_write": null,
+    "output": 12.0
+   }
+  },
+  {
+   "nome": "Kimi K3",
+   "fornitore": "Moonshot AI",
+   "categoria": "Powerful",
+   "input": 3.0,
+   "cached": 0.3,
+   "cache_write": null,
+   "output": 15.0
+  }
+ ]
+}

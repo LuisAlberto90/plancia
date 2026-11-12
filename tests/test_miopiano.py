@@ -11,9 +11,11 @@ home = Path(tempfile.mkdtemp()); os.environ["PLANCIA_HOME"] = str(home / ".planc
 sys.path.insert(0, str(Q))
 from fcore import miopiano as M, consumi as C
 
-d = M.impostazioni(); check(d["copilot"]["unita"] == "" and not d["claude"]["auto"], "piano: vuoto di default")
-check(M.salva({"copilot": {"unita": "crediti", "tetto": 5000, "reset_giorno": 1, "usati": 267.9, "moltiplicatori": {"gpt-5": 1}}})["ok"] and M.impostazioni()["copilot"]["tetto"] == 5000, "piano: salva e rilegge Copilot")
-for brutto in ({"copilot": {"unita": "x"}}, {"copilot": {"tetto": -1}}, {"copilot": {"reset_giorno": 40}}, {"copilot": {"tetto": "abc"}}, "no"):
+d = M.impostazioni(); check(d["copilot"]["piano"] == "" and not d["claude"]["auto"], "piano: vuoto di default")
+check(M.salva({"copilot": {"piano": "business", "usati": 267.9}})["ok"] and M.impostazioni()["copilot"]["tetto"] == 1900 and M.impostazioni()["copilot"]["usati"] == 267.9, "piano: Business ha il suo tetto e si rilegge")
+check(M.salva({"copilot": {"piano": "custom", "tetto": 5000}})["ok"] and M.impostazioni()["copilot"]["tetto"] == 5000, "piano: Personalizzato usa il tetto scritto")
+check(M.impostazioni()["copilot"]["prezzi"]["aggiornato_al"] and "ciclo" in M.impostazioni()["copilot"], "piano: data dei prezzi e ciclo UTC nel pannello")
+for brutto in ({"copilot": {"piano": "x"}}, {"copilot": {"tetto": -1}}, {"copilot": {"usati": "abc"}}, "no"):
     try: M.salva(brutto); check(False, "piano: rifiuta %s" % brutto)
     except ValueError: check(True, "piano: rifiuta valori fuori misura")
 sl = home / "sl.py"; sl.write_text(M.STATUSLINE, encoding="utf-8")

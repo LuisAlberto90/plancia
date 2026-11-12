@@ -6,8 +6,8 @@ import json, os, time
 from pathlib import Path
 try: from . import richieste as RQ
 except ImportError: import richieste as RQ
-try: from . import vscodechat as VC
-except ImportError: import vscodechat as VC
+try: from . import vscodechat as VC, crediti as CRD
+except ImportError: import vscodechat as VC, crediti as CRD
 
 _C = {}
 TOP = 5
@@ -132,6 +132,20 @@ def consumi(radici, giorni=7):
     return d
 
 
+def _cr_vscode(v):
+    """Crediti di una richiesta della chat di VS Code. Dato approssimato: la chat dichiara il contesto della chiamata piu grande (promptTokens, cache compresa) e i token scritti,
+    non quante chiamate ha fatto ne quanta cache ha riusato. Si conta il contesto tutto come input pieno (alto per la cache, basso per le chiamate multiple)."""
+    acc = CRD.nuovo(); CRD.aggiungi(acc, v.get("modello") or "", v.get("ctx") or v.get("token_in") or 0, 0, 0, v.get("token_out") or 0, approx=True)
+    return acc
+
+
+def _cr_campi(r):
+    """Campi crediti della riga (solo Copilot): cr = crediti stimati, cd = [token per voce, crediti per voce], cx = 1 se approssimato, cm = modelli senza prezzo, cl = chiamate long context."""
+    a = r.get("crediti")
+    if r.get("fonte") not in ("copilot", "vscode") or not a: return {}
+    return {"cr": round(a["c"], 4), "cd": [a["t"], [round(x, 4) for x in a["k"]]], "cx": 1 if a.get("approx") else 0, "cn": sorted(a["mancanti"])[:6], "cl": a.get("lunghe", 0)}
+
+
 def righe(radici, giorni=90):
     """Elenco piatto delle richieste (tutti i progetti) per la pagina Consumi: filtri, grafici e regole di spreco si calcolano nel browser.
     giorni=0 -> tutto. Mai un errore: un progetto che non si legge viene saltato."""
@@ -144,7 +158,7 @@ def righe(radici, giorni=90):
                 try: vs = VC.richieste(rad)
                 except Exception: vs = []
                 if vs: rich = [r for r in rich if r.get("fonte") != "vscode"] + [{"inizio": v["inizio"], "fonte": "vscode", "domanda": v["domanda"], "token_in": v.get("token_in", 0), "token_out": v.get("token_out", 0), "token_lavoro": v.get("token_in", 0) + v.get("token_out", 0), "ragionamento": v.get("ragionamento", 0),
-                                                                                  "modelli": {v.get("modello") or "?": [v.get("token_in", 0) + v.get("token_out", 0), 0, v.get("token_out", 0)]}, "ctx": v.get("ctx", 0), "ctx_max": v.get("ctx_max", 0), "stimato": v["stimato"], "sessione": v.get("sessione") or "vs", "titolo": v.get("titolo", "")} for v in vs]
+                                                                                  "modelli": {v.get("modello") or "?": [v.get("token_in", 0) + v.get("token_out", 0), 0, v.get("token_out", 0)]}, "ctx": v.get("ctx", 0), "ctx_max": v.get("ctx_max", 0), "crediti": _cr_vscode(v), "stimato": v["stimato"], "sessione": v.get("sessione") or "vs", "titolo": v.get("titolo", "")} for v in vs]
                 n0 = len(out)
                 for r in rich:
                     g = str(r.get("inizio") or "")[:10]
@@ -153,7 +167,7 @@ def righe(radici, giorni=90):
                     out.append({"p": len(progetti), "t": str(r.get("inizio") or "")[:16], "f": r.get("fonte") or "?", "m": mod, "s": "%d|%s" % (len(progetti), r.get("sessione") or g),
                                 "d": (r.get("domanda") or "").strip()[:300], "L": int(r.get("token_lavoro") or 0), "R": int(r.get("token_riletti") or 0), "O": int(r.get("token_out") or 0), "I": int(r.get("token_in") or 0),
                                 "W": int(r.get("token_scritti") or 0), "G": int(r.get("ragionamento") or 0), "c": int(r.get("ctx") or 0), "cm": int(r.get("ctx_max") or 0), "st": 1 if r.get("stimato") else 0,
-                                "pi": 1 if r.get("piano_scritto") else 0, "sk": r.get("skills") or [], "ti": str(r.get("titolo") or "")[:80], "pc": int(r.get("plancia_chiamate") or 0), "pt": int(r.get("plancia_token") or 0)})
+                                "pi": 1 if r.get("piano_scritto") else 0, **_cr_campi(r), "sk": r.get("skills") or [], "ti": str(r.get("titolo") or "")[:80], "pc": int(r.get("plancia_chiamate") or 0), "pt": int(r.get("plancia_token") or 0)})
                 sess = {o["s"] for o in out[n0:]}
                 ctx = None; cv = [v for v in vs if v.get("ctx")]
                 if cv:

@@ -1,8 +1,8 @@
 """Richieste fatte agli agenti, ricostruite dalle trascrizioni (zero token): domanda, durata, token, file modificati, comandi, sotto-agenti, risposta.
 Base per le schede Richieste, Piano (piano dell'ultima richiesta) e Riprendere."""
 import json, os, re, time
-try: from . import store as lib, sessioni as S, policy as PO
-except ImportError: import store as lib, sessioni as S, policy as PO
+try: from . import store as lib, sessioni as S, policy as PO, crediti as CRD
+except ImportError: import store as lib, sessioni as S, policy as PO, crediti as CRD
 
 MARCATORE = re.compile(r"\b(?:plancia|factory\.py)\s+(?:piano\s+nuovo\b|passo\s+[A-Za-z0-9][\w.-]{0,15}(?:\s+(?:fatto|ok|errore|bloccato|ko|saltato|non_necessario|aspetta|inizia|in_corso|via)\b)?)")
 NORMALE_1 = re.compile(r"(^|[;&|]\s*)(diff|grep|egrep|rg|cmp|test|\[)\b")
@@ -90,7 +90,7 @@ def _mod(r, nome, lavoro, riletti, out):
 
 def _nuova(domanda, ts, fonte, sid):
     return {"domanda": lib.redigi_testo(domanda, 20000), "inizio": ts, "fine": ts, "fonte": fonte, "sessione": sid, "token_lavoro": 0, "token_riletti": 0, "ragionamento": 0, "token_in": 0, "token_out": 0, "token_scritti": 0,
-            "strumenti": {}, "file": [], "comandi": [], "errori": 0, "sotto_agenti": 0, "risposta": "", "rami": None, "attivita": [], "finita": False, "_id": {}, "_passo": None, "piano_scritto": False, "ambiente": [], "righe": {}, "modelli": {}, "skills": [], "plancia_chiamate": 0, "plancia_token": 0, "ctx": 0}
+            "strumenti": {}, "file": [], "comandi": [], "errori": 0, "sotto_agenti": 0, "risposta": "", "rami": None, "attivita": [], "finita": False, "_id": {}, "_passo": None, "piano_scritto": False, "ambiente": [], "righe": {}, "modelli": {}, "skills": [], "plancia_chiamate": 0, "plancia_token": 0, "ctx": 0, "crediti": None}
 
 
 PROVA = re.compile(r"(?i)\b(pytest|jest|karma|vitest|unittest|run_tests|mvnw?(\.cmd)?\b.*\b(test|verify|package|install|compile)|gradlew?(\.bat)?\s+.*\b(test|build|check)|npm\s+(run\s+)?(test|build|lint)|pnpm\s+(run\s+)?(test|build|lint)|yarn\s+(test|build|lint)|ng\s+(test|build|lint)|tsc|ruff|flake8|mypy|eslint|dotnet\s+(test|build)|cargo\s+(test|build|check)|go\s+(test|build|vet)|make\s+(test|check|build)|python\S*\s+\S*tests?\S*)\b")
@@ -295,6 +295,8 @@ def da_copilot(f):
             r["token_in"] += u.get("inputTokens", 0); r["token_out"] += u.get("outputTokens", 0); r["token_scritti"] += u.get("cacheWriteTokens", 0)
             r["token_riletti"] += u.get("cacheReadTokens", 0); r["ragionamento"] += u.get("reasoningTokens", 0)
             _mod(r, x.get("model") or u.get("model") or d.get("model") or cur_mod, u.get("inputTokens", 0) + u.get("cacheWriteTokens", 0), u.get("cacheReadTokens", 0), u.get("outputTokens", 0))
+            if r["crediti"] is None: r["crediti"] = CRD.nuovo()
+            CRD.aggiungi(r["crediti"], x.get("model") or u.get("model") or d.get("model") or cur_mod, u.get("inputTokens", 0), u.get("cacheReadTokens", 0), u.get("cacheWriteTokens", 0), u.get("outputTokens", 0))
     if r: out.append(_chiudi(r, rami))
     _cache[k] = out
     return out
