@@ -80,7 +80,7 @@ def _settings_claude(): return Path.home() / ".claude" / "settings.json"
 
 
 def comando_installa():
-    return '%s "%s" limiti-installa --scrivi' % ("python" if os.name == "nt" else "python3", Path(__file__).resolve().parent.parent / "factory.py")
+    return '%s "%s" limiti-installa --scrivi' % ("py" if os.name == "nt" else "python3", Path(__file__).resolve().parent.parent / "factory.py")
 
 
 def _nostro(cmd): return "statusline.py" in str(cmd) and ".plancia" in str(cmd).replace("\\", "/")
