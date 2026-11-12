@@ -385,6 +385,14 @@ def main(a):
                         import traceback; d = {"errore_pannello": traceback.format_exc()[-2500:]}
                     finally: os.environ["FACTORY_ROOT"] = str(rad)
                 body, ct = json.dumps(d, ensure_ascii=False).encode(), "application/json"
+            elif u.path == "/api/miopiano":
+                try:
+                    try: from fcore import miopiano as MP
+                    except ImportError: from . import miopiano as MP
+                    d = MP.impostazioni()
+                except Exception:
+                    import traceback; d = {"errore_pannello": traceback.format_exc()[-1500:]}
+                body, ct = json.dumps(d, ensure_ascii=False).encode(), "application/json"
             elif u.path == "/api/consumi":
                 with BLOCCO:
                     try:
@@ -438,8 +446,19 @@ def main(a):
         def do_POST(self):
             """Unica scrittura: accetta/rifiuta una proposta della scheda Strumenti. Solo dal pannello stesso (stessa origine), mai da altri siti."""
             u = urlparse(self.path)
-            if u.path not in ("/api/proposta", "/api/piano", "/api/aggiorna") or not self._stessa_origine(): self.send_response(403); self.end_headers(); return
+            if u.path not in ("/api/proposta", "/api/piano", "/api/aggiorna", "/api/miopiano") or not self._stessa_origine(): self.send_response(403); self.end_headers(); return
             if o.token and parse_qs(u.query).get("token", [""])[0] != o.token: self.send_response(403); self.end_headers(); return
+            if u.path == "/api/miopiano":
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    if n > 8192 or "application/json" not in (self.headers.get("Content-Type") or ""): raise ValueError("richiesta non valida")
+                    try: from fcore import miopiano as MP
+                    except ImportError: from . import miopiano as MP
+                    with BLOCCO: r = MP.salva(json.loads(self.rfile.read(n).decode("utf-8")))
+                    body = json.dumps(r).encode(); self.send_response(200)
+                except Exception as e:
+                    body = json.dumps({"ok": False, "messaggio": str(e)[:200]}).encode(); self.send_response(400)
+                self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(body))); self._sicurezza(); self.end_headers(); self.wfile.write(body); return
             if u.path in ("/api/piano", "/api/aggiorna"):
                 try:
                     n = int(self.headers.get("Content-Length") or 0)

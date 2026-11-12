@@ -103,9 +103,11 @@ Test della Plancia stessa: `python tests/run_tests.py` (il test del pannello nel
 
 
 
-## Consumi: sei schede
+## Consumi: cinque schede e «Il mio piano»
 
-La pagina Consumi ha sei schede: **C1 Sintesi** (KPI, consumo giorno per giorno, chi consuma, di cosa e fatto, modelli e agenti), **C2 Progetti** (una card per progetto, il clic apre il dettaglio sotto), **C3 Chat e richieste** (chat, passo per passo, richieste piu pesanti), **C4 Modelli e agenti** (elenco, dispersione, matrice progetto x modello), **C5 Sprechi e risparmio** (regole in token: contesto oltre 80%, richieste interrotte, tentativi ripetuti, fuori scala, domande brevi su modello costoso, cache poco usata) e **C6 Riepilogo** (scorecard di uso corretto, export/import JSON locale, stampa). Filtri comuni: periodo (anche da-a), progetto, agente, modello. Ogni card ha un pulsante ⓘ (cosa misura, come si calcola, su cosa). Niente euro e niente persone: solo token. Le regole sono euristiche calcolate sul PC, spiegate nell'ⓘ.
+La pagina Consumi risponde a cinque domande: **Come sto** (anelli e ritmo rispetto al tuo limite, con proiezione e confronto con una settimana tipica), **Dove è andato** (mappa progetto × modello, poche chat fanno quasi tutto, dettaglio per progetto), **Perché** (contesto che si gonfia, modello scelto, richieste da rifare, piano scritto), **Cosa cambio** (lezioni con risparmi a intervalli prudenti e quattro abitudini) e **Registro** (tutte le richieste, ricerca, CSV, riepilogo da condividere). Niente euro, niente persone.
+
+**Il mio piano** (⚙): per misurare in «% del limite» servono i tuoi limiti. **Claude Code**: li legge in automatico dalla statusline (sessione di 5 ore e settimana), con `python3 factory.py limiti-installa --scrivi` (a vuoto senza `--scrivi`; richiama la statusline che avevi; `limiti-rimuovi` la toglie). **GitHub Copilot**: tetto e giorno di reset stanno sui server GitHub, non sul PC: si scrivono una volta (crediti o richieste premium, con i moltiplicatori per modello). Tutto in `~/.plancia/`, vuoto di default. `python3 factory.py consumi-esporta` scrive le righe senza testi e senza nomi di progetto, da mandare a chi ti supporta.
 
 ## Consumi: chi consuma cosa
 

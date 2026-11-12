@@ -9,6 +9,8 @@
   plancia diagnosi         zip da mandare a chi ti supporta (struttura, configurazioni, eventi, errori; nessun codice sorgente)
   plancia strumenti        skill, server MCP, hook, istruzioni e plugin del progetto, con proposte
   plancia skill-progetto   crea la skill del progetto con i comandi di build/test verificati (--scrivi)
+  plancia limiti-installa [--scrivi]   Claude Code: salva i tuoi limiti (sessione/settimana) per la pagina Consumi; limiti-rimuovi per toglierla
+  plancia consumi-esporta [file.json]   righe dei consumi senza testi dei prompt, da mandare a chi ti supporta
   plancia controlla        controlla l'installazione e dice cosa manca e come sistemarlo
   plancia scollega         toglie dal progetto hook, regola e MCP dell'installazione classica (per passare al plugin) (--scrivi)
   plancia archivia         mette da parte lo storico (piani, eventi, prove) in .factory/archivio/ e riparte pulito
@@ -259,6 +261,10 @@ def main(a):
         from fcore import diagnosi; return diagnosi.main(r)
     if c == "metodo": return metodo.main(r)
     if c == "esporta": return pannello.main(["--esporta"] + (r or ["plancia.html"]))
+    if c in ("limiti-installa", "limiti-rimuovi"):
+        from fcore import miopiano; return miopiano.main(r, c == "limiti-rimuovi")
+    if c == "consumi-esporta":
+        from fcore import consumi; return consumi.esporta(r)
     if c == "salute": return cmd_salute(r)
     if c == "init": return cmd_init(r)
     if c == "hook":

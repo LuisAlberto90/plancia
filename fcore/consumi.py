@@ -167,3 +167,17 @@ def righe(radici, giorni=90):
         else: os.environ["FACTORY_ROOT"] = vecchio
     out.sort(key=lambda x: x["t"], reverse=True)
     return {"giorni": giorni, "progetti": progetti, "righe": out[:6000], "troncate": len(out) > 6000, "calcolato": time.strftime("%H:%M:%S")}
+
+
+def esporta(a):
+    """Scrive le righe dei consumi in un JSON SENZA i testi delle domande (solo numeri, modelli, date): per verificare le regole su dati veri senza mandare nulla di privato."""
+    try:
+        try: from fcore import panoramica as PN
+        except ImportError: from . import panoramica as PN
+        d = righe(PN.progetti(), 90)
+    except Exception as e:
+        print("non riesco a leggere i consumi: %s" % e); return 1
+    for r in d["righe"]: r["d"] = "(%d caratteri)" % len(r["d"]); r["ti"] = ""
+    for i, p in enumerate(d["progetti"]): p["nome"] = "progetto-%d" % (i + 1); p["radice"] = ""
+    f = Path(a[0] if a else "plancia-consumi.json"); f.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+    print("scritto %s: %d richieste, nessun testo dei prompt." % (f.resolve(), len(d["righe"]))); return 0
