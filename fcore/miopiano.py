@@ -2,7 +2,7 @@
 - Claude: letti in automatico dalla statusline di Claude Code (rate_limits: sessione 5 ore e settimana), salvati in ~/.plancia/limiti.json. Zero rete, zero credenziali.
 - Copilot: il tetto e il giorno di reset stanno sui server GitHub e non esistono in locale: si scrivono una volta (~/.plancia/miopiano.json).
 Vuoto di default: finche non lo compili la pagina Consumi mostra solo token. Mai nessuna scrittura in settings.json senza `limiti-installa --scrivi`."""
-import json, os, re, subprocess, sys, time
+import json, os, re, sys, time
 from pathlib import Path
 
 UNITA = ("richieste", "crediti")
@@ -43,7 +43,7 @@ def _leggi(nome, difetto):
 
 def _num(v, lo, hi):
     try: x = float(v)
-    except (TypeError, ValueError): raise ValueError("numero non valido")
+    except (TypeError, ValueError): raise ValueError("numero non valido") from None
     if not (lo <= x <= hi) or x != x: raise ValueError("numero fuori misura")
     return x
 
